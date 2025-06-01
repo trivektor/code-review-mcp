@@ -90,14 +90,16 @@ const tools = {
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create server instance
-let transport = null;
 const server = new Server(
   {
     name: 'code-review-server',
     version: '1.0.0',
+  },
+  {
     capabilities: {
-      tools: tools
-    }
+      tools,
+      logging: {},
+    },
   }
 );
 
@@ -142,28 +144,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function handleAnalyzeFile(args) {
   const { filePath, analysisTypes = ['lint', 'security', 'complexity', 'antipatterns'] } = args;
   
-  // Send start notification
-  transport.send({
-    jsonrpc: '2.0',
-    method: 'window/showMessage',
-    params: {
-      type: 3, // Info
-      message: `Analyzing file: ${filePath}`
-    }
-  });
-  
   try {
     const results = await codeAnalyzer.analyzeFile(filePath, analysisTypes);
-    
-    // Send completion notification
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 3, // Info
-        message: `Analysis complete: Found ${results.issues.length} issues`
-      }
-    });
     
     return {
       content: [
@@ -173,17 +155,7 @@ async function handleAnalyzeFile(args) {
         }
       ]
     };
-  } catch (error) {
-    // Send error notification
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 1, // Error
-        message: `Error analyzing file: ${error.message}`
-      }
-    });
-    
+  } catch (error) {    
     return {
       content: [
         {
@@ -203,29 +175,9 @@ async function handleAnalyzeDirectory(args) {
     analysisTypes = ['lint', 'security', 'complexity', 'antipatterns']
   } = args;
   
-  // Send start notification
-  transport.send({
-    jsonrpc: '2.0',
-    method: 'window/showMessage',
-    params: {
-      type: 3, // Info
-      message: `Analyzing directory: ${directoryPath}`
-    }
-  });
-  
   try {
     const results = await codeAnalyzer.analyzeDirectory(directoryPath, filePatterns, analysisTypes);
-    
-    // Send completion notification
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 3, // Info
-        message: `Directory analysis complete: Analyzed ${results.length} files`
-      }
-    });
-    
+  
     return {
       content: [
         {
@@ -235,16 +187,6 @@ async function handleAnalyzeDirectory(args) {
       ]
     };
   } catch (error) {
-    // Send error notification
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 1, // Error
-        message: `Error analyzing directory: ${error.message}`
-      }
-    });
-    
     return {
       content: [
         {
@@ -273,36 +215,11 @@ async function handleGetIssueDetails(args) {
 }
 
 async function initializeAnalyzer() {
-if (!codeAnalyzer) {
-  try {
-    codeAnalyzer = new CodeAnalyzer(transport);
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 3, // Info
-        message: 'Code analyzer initialized'
-      }
-    });
-  } catch (error) {
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 1, // Error
-        message: `Failed to initialize analyzer: ${error.message}`
-      }
-    });
-    throw error;
-      // Send error notification in JSON-RPC 2.0 format
-      transport.send({
-        jsonrpc: '2.0',
-        method: 'window/showMessage',
-        params: {
-          type: 1, // Error
-          message: `Failed to initialize analyzer: ${error.message}`,
-        },
-      });
+  if (!codeAnalyzer) {
+    try {
+      // Then initialize the analyzer
+      codeAnalyzer = new CodeAnalyzer();
+    } catch (error) {
       throw error;
     }
   }
@@ -445,38 +362,16 @@ function getSeverityIcon(severity) {
 
 // Start the server
 async function main() {
-  transport = new StdioServerTransport();
+  const transport = new StdioServerTransport();
   
   try {  
+    // Then connect the server
     await server.connect(transport);
-    // Send server start notification in JSON-RPC 2.0 format
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 3, // Info
-        message: 'Code Review MCP Server is running'
-      }
-    });
     
-    // Send capabilities initialization
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'initialize',
-      params: {
-        capabilities: server.getCapabilities()
-      }
-    });
+    // Initialize the analyzer
+    await initializeAnalyzer();
   } catch (error) {
-    // Send error notification in JSON-RPC 2.0 format
-    transport.send({
-      jsonrpc: '2.0',
-      method: 'window/showMessage',
-      params: {
-        type: 1, // Error
-        message: `Failed to start server: ${error.message}`
-      }
-    });
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 }

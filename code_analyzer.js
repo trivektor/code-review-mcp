@@ -18,8 +18,7 @@ const anthropic = new Anthropic({
  });
 
 export class CodeAnalyzer {
-  constructor(transport) {
-    this.transport = transport;
+  constructor() {
     this.eslint = new ESLint({
       baseConfig: {
         env: {
@@ -138,14 +137,6 @@ export class CodeAnalyzer {
 
       return issues;
     } catch (error) {
-      this.transport.send({
-        jsonrpc: '2.0',
-        method: 'window/showMessage',
-        params: {
-          type: 1, // Error
-          message: `ESLint analysis failed: ${error.message}`
-        }
-      });
       return [];
     }
   }
@@ -208,6 +199,9 @@ Only include actual security issues, not general code quality problems.`;
 
   // Extract the content from the response
   const content = response.content[0]?.text;
+
+  console.error('Anthropic response received');
+  console.error(content);
   
   // Log the content instead of the full response
   // console.log(JSON.stringify({
@@ -224,6 +218,9 @@ Only include actual security issues, not general code quality problems.`;
     throw new Error('Could not parse response as JSON');
   }
 
+  console.error('jsonMatch');
+  console.error(jsonMatch);
+
   const securityAnalysis = JSON.parse(jsonMatch[0]);
   
   // Convert to our internal format
@@ -239,119 +236,8 @@ Only include actual security issues, not general code quality problems.`;
   //console.error(`🛡️ Claude found ${issues.length} security issues`);
   return issues;
 } catch (error) {
-  this.transport.send({
-    jsonrpc: '2.0',
-    method: 'window/showMessage',
-    params: {
-      type: 1, // Error
-      message: `❌ Anthropic API request failed: ${error.message}`
-    }
-  });
   return [];
 }
-
-    // const requestData = JSON.stringify({
-    //   model: 'claude-3-sonnet-20240229',
-    //   max_tokens: 2000,
-    //   messages: [
-    //     {
-    //       role: 'user',
-    //       content: prompt
-    //     }
-    //   ]
-    // });
-
-    // const options = {
-    //   hostname: 'api.anthropic.com',
-    //   port: 443,
-    //   path: '/v1/messages',
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'x-api-key': ANTHROPIC_API_KEY,
-    //     'anthropic-version': '2023-06-01',
-    //     'Content-Length': Buffer.byteLength(requestData)
-    //   }
-    // };
-
-    // return new Promise((resolve, reject) => {
-    //   const req = https.request(options, (res) => {
-    //     let data = '';
-        
-    //     res.on('data', (chunk) => {
-    //       console.error(JSON.stringify({
-    //         type: 'log',
-    //         level: 'info',
-    //         message: 'anthropic_response_received',
-    //         timestamp: new Date().toISOString(),
-    //         data: chunk,
-    //       }));
-    //       data += chunk;
-    //     });
-        
-    //     res.on('end', () => {
-    //       try {
-    //         console.error(JSON.stringify({
-    //           type: 'log',
-    //           level: 'info',
-    //           message: 'anthropic_response_received',
-    //           timestamp: new Date().toISOString(),
-    //           data,
-    //         }));
-
-    //         const result = JSON.parse(data);
-
-    //         console.log({ result });
-            
-    //         if (result.content && result.content[0] && result.content[0].text) {
-    //           const responseText = result.content[0].text;
-              
-    //           // Extract JSON from the response
-    //           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    //           if (jsonMatch) {
-    //             const securityAnalysis = JSON.parse(jsonMatch[0]);
-                
-    //             // Convert to our internal format
-    //             const issues = securityAnalysis.issues.map(issue => ({
-    //               rule: issue.rule,
-    //               message: issue.message,
-    //               severity: issue.severity || 'error',
-    //               line: issue.line,
-    //               type: 'security',
-    //               suggestion: issue.suggestion
-    //             }));
-                
-    //             console.error(`🛡️ Claude found ${issues.length} security issues`);
-    //             resolve(issues);
-    //           } else {
-    //             console.error('⚠️ Could not parse Claude response');
-    //             reject();
-    //           }
-    //         } else {
-    //           console.error('❌ Invalid Claude API response');
-    //           reject();
-    //         }
-    //       } catch (parseError) {
-    //         console.error('❌ Failed to parse Claude response:', parseError.message);
-    //         reject();
-    //       }
-    //     });
-    //   });
-      
-    //   req.on('error', (error) => {
-    //     console.error('❌ Claude API request failed:', error.message);
-    //     reject();
-    //   });
-      
-    //   req.setTimeout(15000, () => {
-    //     req.destroy();
-    //     console.error('⏰ Claude API timeout');
-    //     reject();
-    //   });
-      
-    //   req.write(requestData);
-    //   req.end();
-    // });
   }
 
   analyzeAntiPatterns(content, filePath) {
