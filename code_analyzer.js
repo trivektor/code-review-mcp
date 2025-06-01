@@ -142,8 +142,6 @@ export class CodeAnalyzer {
   }
 
   async analyzeSecurityIssues(content, filePath) {
-    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-
     const prompt = `You are a security expert analyzing JavaScript/TypeScript code for vulnerabilities. 
 
 Please analyze the following code and identify specific security issues. For each issue found, provide:
@@ -188,42 +186,34 @@ Focus on these types of security vulnerabilities:
 Only include actual security issues, not general code quality problems.`;
 
   try {
-  const response = await anthropic.messages.create({
+    let fullResponse = '';
+  // Create streaming response
+  const stream = anthropic.messages.stream({
     model: "claude-3-7-sonnet-20250219",
     max_tokens: 1024,
     messages: [
-      {"role": "user", "content": prompt}
+      {"role": "user", "content": prompt},
     ],
-    system: "You are a helpful assistant."
-  });
+    //system: "You are a helpful assistant.",
+    stream: true,
+  }).on('text', (text) => {
+    fullResponse += text;
+  })
 
-  // Extract the content from the response
-  const content = response.content[0]?.text;
-
-  console.error('Anthropic response received');
-  console.error(content);
+  await stream.finalMessage();
   
-  // Log the content instead of the full response
-  // console.log(JSON.stringify({
-  //   type: 'log',
-  //   level: 'info',
-  //   message: 'Anthropic response received',
-  //   timestamp: new Date().toISOString(),
-  //   content: content?.substring(0, 100) + (content?.length > 100 ? '...' : '')
-  // }));
-
+  // Log the full response
+  console.error('Full Claude response received');
+  console.error(fullResponse);
+  
   // Parse the JSON response
-  const jsonMatch = content?.match(/\{[\s\S]*\}/);
+  const jsonMatch = fullResponse?.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Could not parse response as JSON');
   }
 
-  console.error('jsonMatch');
-  console.error(jsonMatch);
-
   const securityAnalysis = JSON.parse(jsonMatch[0]);
-  
-  // Convert to our internal format
+
   const issues = securityAnalysis.issues.map(issue => ({
     rule: issue.rule,
     message: issue.message,
@@ -233,16 +223,14 @@ Only include actual security issues, not general code quality problems.`;
     suggestion: issue.suggestion
   }));
 
-  //console.error(`🛡️ Claude found ${issues.length} security issues`);
   return issues;
 } catch (error) {
+  console.error(`Error analyzing security issues: ${error.message}`);
   return [];
 }
-  }
+}
 
-  analyzeAntiPatterns(content, filePath) {
-    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-
+analyzeAntiPatterns(content, filePath) {
     const prompt = `You are a senior software architect and code quality expert analyzing JavaScript/TypeScript code for anti-patterns, code smells, and design issues.
 
 Please analyze the following code and identify specific anti-patterns and code quality issues. For each issue found, provide:
@@ -311,92 +299,6 @@ Focus on these types of anti-patterns and code smells:
 - Memory Leaks (unreleased resources, event listeners)
 
 Only include actual design/quality issues, not security vulnerabilities.`;
-
-    const requestData = JSON.stringify({
-      model: 'claude-3-sonnet-20240229',
-      max_tokens: 3000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    });
-
-    const options = {
-      hostname: 'api.anthropic.com',
-      port: 443,
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length': Buffer.byteLength(requestData)
-      }
-    };
-
-    return new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          try {
-            const result = JSON.parse(data);
-            
-            if (result.content && result.content[0] && result.content[0].text) {
-              const responseText = result.content[0].text;
-              
-              // Extract JSON from the response
-              const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                const antiPatternAnalysis = JSON.parse(jsonMatch[0]);
-                
-                // Convert to our internal format
-                const issues = antiPatternAnalysis.issues.map(issue => ({
-                  rule: issue.rule,
-                  message: issue.message,
-                  severity: issue.severity || 'warning',
-                  line: issue.line,
-                  type: 'antipattern',
-                  suggestion: issue.suggestion
-                }));
-                
-                console.error(`🔧 Claude found ${issues.length} anti-patterns and code smells`);
-                resolve(issues);
-              } else {
-                console.error('⚠️ Could not parse Claude response');
-                reject();
-              }
-            } else {
-              console.error('❌ Invalid Claude API response');
-              reject();
-            }
-          } catch (parseError) {
-            console.error('❌ Failed to parse Claude response:', parseError.message);
-            reject();
-          }
-        });
-      });
-      
-      req.on('error', (error) => {
-        console.error('❌ Claude API request failed:', error.message);
-        reject();
-      });
-      
-      req.setTimeout(20000, () => {
-        req.destroy();
-        console.error('⏰ Claude API timeout');
-        reject();
-      });
-      
-      req.write(requestData);
-      req.end();
-    });
   }
 
   calculateComplexityMetrics(content) {
