@@ -18,7 +18,8 @@ const anthropic = new Anthropic({
  });
 
 export class CodeAnalyzer {
-  constructor() {
+  constructor(transport) {
+    this.transport = transport;
     this.eslint = new ESLint({
       baseConfig: {
         env: {
@@ -137,7 +138,14 @@ export class CodeAnalyzer {
 
       return issues;
     } catch (error) {
-      console.error("ESLint analysis failed:", error);
+      this.transport.send({
+        jsonrpc: '2.0',
+        method: 'window/showMessage',
+        params: {
+          type: 1, // Error
+          message: `ESLint analysis failed: ${error.message}`
+        }
+      });
       return [];
     }
   }
@@ -228,10 +236,17 @@ Only include actual security issues, not general code quality problems.`;
     suggestion: issue.suggestion
   }));
 
-  console.error(`🛡️ Claude found ${issues.length} security issues`);
+  //console.error(`🛡️ Claude found ${issues.length} security issues`);
   return issues;
 } catch (error) {
-  console.error('❌ Anthropic API request failed:', error.message);
+  this.transport.send({
+    jsonrpc: '2.0',
+    method: 'window/showMessage',
+    params: {
+      type: 1, // Error
+      message: `❌ Anthropic API request failed: ${error.message}`
+    }
+  });
   return [];
 }
 

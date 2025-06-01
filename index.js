@@ -142,18 +142,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function handleAnalyzeFile(args) {
   const { filePath, analysisTypes = ['lint', 'security', 'complexity', 'antipatterns'] } = args;
   
-  console.log(JSON.stringify({ message: `Analyzing file: ${filePath}` }));
-  const results = await codeAnalyzer.analyzeFile(filePath, analysisTypes);
-  console.log(JSON.stringify({ message: `Analysis complete: Found ${results.issues.length} issues` }));
+  // Send start notification
+  transport.send({
+    jsonrpc: '2.0',
+    method: 'window/showMessage',
+    params: {
+      type: 3, // Info
+      message: `Analyzing file: ${filePath}`
+    }
+  });
   
-  return {
-    content: [
-      {
-        type: 'text',
-        text: formatAnalysisResults(results, filePath)
+  try {
+    const results = await codeAnalyzer.analyzeFile(filePath, analysisTypes);
+    
+    // Send completion notification
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 3, // Info
+        message: `Analysis complete: Found ${results.issues.length} issues`
       }
-    ]
-  };
+    });
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: formatAnalysisResults(results, filePath)
+        }
+      ]
+    };
+  } catch (error) {
+    // Send error notification
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 1, // Error
+        message: `Error analyzing file: ${error.message}`
+      }
+    });
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${error.message}`
+        }
+      ],
+      isError: true
+    };
+  }
 }
 
 async function handleAnalyzeDirectory(args) {
@@ -163,18 +203,58 @@ async function handleAnalyzeDirectory(args) {
     analysisTypes = ['lint', 'security', 'complexity', 'antipatterns']
   } = args;
   
-  console.log(JSON.stringify({ message: `Analyzing directory: ${directoryPath}` }));
-  const results = await codeAnalyzer.analyzeDirectory(directoryPath, filePatterns, analysisTypes);
-  console.log(JSON.stringify({ message: `Directory analysis complete: Analyzed ${results.length} files` }));
+  // Send start notification
+  transport.send({
+    jsonrpc: '2.0',
+    method: 'window/showMessage',
+    params: {
+      type: 3, // Info
+      message: `Analyzing directory: ${directoryPath}`
+    }
+  });
   
-  return {
-    content: [
-      {
-        type: 'text',
-        text: formatDirectoryResults(results)
+  try {
+    const results = await codeAnalyzer.analyzeDirectory(directoryPath, filePatterns, analysisTypes);
+    
+    // Send completion notification
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 3, // Info
+        message: `Directory analysis complete: Analyzed ${results.length} files`
       }
-    ]
-  };
+    });
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: formatDirectoryResults(results)
+        }
+      ]
+    };
+  } catch (error) {
+    // Send error notification
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 1, // Error
+        message: `Error analyzing directory: ${error.message}`
+      }
+    });
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${error.message}`
+        }
+      ],
+      isError: true
+    };
+  }
 }
 
 async function handleGetIssueDetails(args) {
@@ -193,19 +273,27 @@ async function handleGetIssueDetails(args) {
 }
 
 async function initializeAnalyzer() {
-  if (!codeAnalyzer) {
-    try {
-      codeAnalyzer = new CodeAnalyzer();
-      // Send initialization notification in JSON-RPC 2.0 format
-      transport.send({
-        jsonrpc: '2.0',
-        method: 'window/showMessage',
-        params: {
-          type: 3, // Info
-          message: 'Code analyzer initialized',
-        },
-      });
-    } catch (error) {
+if (!codeAnalyzer) {
+  try {
+    codeAnalyzer = new CodeAnalyzer(transport);
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 3, // Info
+        message: 'Code analyzer initialized'
+      }
+    });
+  } catch (error) {
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 1, // Error
+        message: `Failed to initialize analyzer: ${error.message}`
+      }
+    });
+    throw error;
       // Send error notification in JSON-RPC 2.0 format
       transport.send({
         jsonrpc: '2.0',
