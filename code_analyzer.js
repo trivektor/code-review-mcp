@@ -2,20 +2,20 @@ import { ESLint } from "eslint";
 import fs from "fs-extra";
 import { glob } from "glob";
 import https from "https";
-import { Anthropic } from '@anthropic-ai/sdk';
-import { fileURLToPath } from 'url';
-import path, { dirname } from 'path';
-import dotenv from 'dotenv';
+import { Anthropic } from "@anthropic-ai/sdk";
+import { fileURLToPath } from "url";
+import path, { dirname } from "path";
+import dotenv from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables from .env file
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
- });
+});
 
 export class CodeAnalyzer {
   constructor() {
@@ -83,7 +83,10 @@ export class CodeAnalyzer {
 
     // Security analysis
     if (analysisTypes.includes("security")) {
-      const securityIssues = await this.analyzeSecurityIssues(fileContent, filePath);
+      const securityIssues = await this.analyzeSecurityIssues(
+        fileContent,
+        filePath
+      );
       results.issues.push(...(securityIssues || []));
     }
 
@@ -185,52 +188,52 @@ Focus on these types of security vulnerabilities:
 
 Only include actual security issues, not general code quality problems.`;
 
-  try {
-    let fullResponse = '';
-  // Create streaming response
-  const stream = anthropic.messages.stream({
-    model: "claude-3-7-sonnet-20250219",
-    max_tokens: 1024,
-    messages: [
-      {"role": "user", "content": prompt},
-    ],
-    //system: "You are a helpful assistant.",
-    stream: true,
-  }).on('text', (text) => {
-    fullResponse += text;
-  })
+    try {
+      let fullResponse = "";
+      // Create streaming response
+      const stream = anthropic.messages
+        .stream({
+          model: "claude-3-7-sonnet-20250219",
+          max_tokens: 1024,
+          messages: [{ role: "user", content: prompt }],
+          //system: "You are a helpful assistant.",
+          stream: true,
+        })
+        .on("text", (text) => {
+          fullResponse += text;
+        });
 
-  await stream.finalMessage();
-  
-  // Log the full response
-  console.error('Full Claude response received');
-  console.error(fullResponse);
-  
-  // Parse the JSON response
-  const jsonMatch = fullResponse?.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Could not parse response as JSON');
+      await stream.finalMessage();
+
+      // Log the full response
+      console.error("Full Claude response received");
+      console.error(fullResponse);
+
+      // Parse the JSON response
+      const jsonMatch = fullResponse?.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("Could not parse response as JSON");
+      }
+
+      const securityAnalysis = JSON.parse(jsonMatch[0]);
+
+      const issues = securityAnalysis.issues.map((issue) => ({
+        rule: issue.rule,
+        message: issue.message,
+        severity: issue.severity || "error",
+        line: issue.line,
+        type: "security",
+        suggestion: issue.suggestion,
+      }));
+
+      return issues;
+    } catch (error) {
+      console.error(`Error analyzing security issues: ${error.message}`);
+      return [];
+    }
   }
 
-  const securityAnalysis = JSON.parse(jsonMatch[0]);
-
-  const issues = securityAnalysis.issues.map(issue => ({
-    rule: issue.rule,
-    message: issue.message,
-    severity: issue.severity || 'error',
-    line: issue.line,
-    type: 'security',
-    suggestion: issue.suggestion
-  }));
-
-  return issues;
-} catch (error) {
-  console.error(`Error analyzing security issues: ${error.message}`);
-  return [];
-}
-}
-
-analyzeAntiPatterns(content, filePath) {
+  analyzeAntiPatterns(content, filePath) {
     const prompt = `You are a senior software architect and code quality expert analyzing JavaScript/TypeScript code for anti-patterns, code smells, and design issues.
 
 Please analyze the following code and identify specific anti-patterns and code quality issues. For each issue found, provide:
