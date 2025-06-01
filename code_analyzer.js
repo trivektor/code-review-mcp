@@ -1,8 +1,21 @@
 import { ESLint } from "eslint";
 import fs from "fs-extra";
-import path from "path";
 import { glob } from "glob";
-import { execSync } from "child_process";
+import https from "https";
+import { Anthropic } from '@anthropic-ai/sdk';
+import { fileURLToPath } from 'url';
+import path, { dirname } from 'path';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables from .env file
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+ });
 
 export class CodeAnalyzer {
   constructor() {
@@ -47,9 +60,6 @@ export class CodeAnalyzer {
       useEslintrc: false,
       //overrideConfigFile: true,
     });
-
-    this.antiPatterns = this.initializeAntiPatterns();
-    this.securityPatterns = this.initializeSecurityPatterns();
   }
 
   async analyzeFile(filePath, analysisTypes) {
@@ -66,27 +76,27 @@ export class CodeAnalyzer {
     const fileContent = await fs.readFile(filePath, "utf8");
 
     // ESLint analysis
-    if (analysisTypes.includes("lint")) {
-      const lintResults = await this.runESLintAnalysis(filePath);
-      results.issues.push(...lintResults);
-    }
+    // if (analysisTypes.includes("lint")) {
+    //   const lintResults = await this.runESLintAnalysis(filePath);
+    //   results.issues.push(...lintResults);
+    // }
 
     // Security analysis
     if (analysisTypes.includes("security")) {
-      const securityIssues = this.analyzeSecurityIssues(fileContent, filePath);
-      results.issues.push(...securityIssues);
+      const securityIssues = await this.analyzeSecurityIssues(fileContent, filePath);
+      results.issues.push(...(securityIssues || []));
     }
 
     // Anti-pattern analysis
-    if (analysisTypes.includes("antipatterns")) {
-      const antiPatternIssues = this.analyzeAntiPatterns(fileContent, filePath);
-      results.issues.push(...antiPatternIssues);
-    }
+    // if (analysisTypes.includes("antipatterns")) {
+    //   const antiPatternIssues = this.analyzeAntiPatterns(fileContent, filePath);
+    //   results.issues.push(...antiPatternIssues);
+    // }
 
-    // Complexity analysis
-    if (analysisTypes.includes("complexity")) {
-      results.metrics = this.calculateComplexityMetrics(fileContent);
-    }
+    // // Complexity analysis
+    // if (analysisTypes.includes("complexity")) {
+    //   results.metrics = this.calculateComplexityMetrics(fileContent);
+    // }
 
     return results;
   }
@@ -132,51 +142,360 @@ export class CodeAnalyzer {
     }
   }
 
-  analyzeSecurityIssues(content, filePath) {
-    const issues = [];
+  async analyzeSecurityIssues(content, filePath) {
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-    for (const pattern of this.securityPatterns) {
-      const matches = content.match(pattern.regex);
-      if (matches) {
-        const lines = content.split("\n");
-        lines.forEach((line, index) => {
-          if (pattern.regex.test(line)) {
-            issues.push({
-              rule: pattern.name,
-              message: pattern.message,
-              severity: pattern.severity,
-              line: index + 1,
-              type: "security",
-              suggestion: pattern.suggestion,
-            });
-          }
-        });
-      }
+    const prompt = `You are a security expert analyzing JavaScript/TypeScript code for vulnerabilities. 
+
+Please analyze the following code and identify specific security issues. For each issue found, provide:
+1. The exact line number where the issue occurs
+2. The security rule/vulnerability type (use kebab-case names like "sql-injection", "xss-vulnerability")
+3. A clear description of the security risk
+4. A specific suggestion for fixing the issue
+
+Code to analyze:
+\`\`\`javascript
+${content}
+\`\`\`
+
+Please respond in this exact JSON format:
+{
+  "issues": [
+    {
+      "line": 5,
+      "rule": "hardcoded-secret",
+      "message": "Hardcoded API key detected in source code",
+      "severity": "error",
+      "suggestion": "Move API key to environment variable"
     }
+  ]
+}
 
-    return issues;
+Focus on these types of security vulnerabilities:
+- Hardcoded secrets, passwords, API keys
+- SQL injection vulnerabilities  
+- Cross-site scripting (XSS) risks
+- Unsafe eval() usage
+- Command injection risks
+- Insecure random number generation
+- Path traversal vulnerabilities
+- Prototype pollution
+- Insecure deserialization
+- SSRF (Server-Side Request Forgery)
+- Timing attacks
+- Information disclosure
+- Weak cryptography
+
+Only include actual security issues, not general code quality problems.`;
+
+  try {
+  const response = await anthropic.messages.create({
+    model: "claude-3-7-sonnet-20250219",
+    max_tokens: 1024,
+    messages: [
+      {"role": "user", "content": prompt}
+    ],
+    system: "You are a helpful assistant."
+  });
+
+  // Extract the content from the response
+  const content = response.content[0]?.text;
+  
+  // Log the content instead of the full response
+  // console.log(JSON.stringify({
+  //   type: 'log',
+  //   level: 'info',
+  //   message: 'Anthropic response received',
+  //   timestamp: new Date().toISOString(),
+  //   content: content?.substring(0, 100) + (content?.length > 100 ? '...' : '')
+  // }));
+
+  // Parse the JSON response
+  const jsonMatch = content?.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('Could not parse response as JSON');
+  }
+
+  const securityAnalysis = JSON.parse(jsonMatch[0]);
+  
+  // Convert to our internal format
+  const issues = securityAnalysis.issues.map(issue => ({
+    rule: issue.rule,
+    message: issue.message,
+    severity: issue.severity || 'error',
+    line: issue.line,
+    type: 'security',
+    suggestion: issue.suggestion
+  }));
+
+  console.error(`🛡️ Claude found ${issues.length} security issues`);
+  return issues;
+} catch (error) {
+  console.error('❌ Anthropic API request failed:', error.message);
+  return [];
+}
+
+    // const requestData = JSON.stringify({
+    //   model: 'claude-3-sonnet-20240229',
+    //   max_tokens: 2000,
+    //   messages: [
+    //     {
+    //       role: 'user',
+    //       content: prompt
+    //     }
+    //   ]
+    // });
+
+    // const options = {
+    //   hostname: 'api.anthropic.com',
+    //   port: 443,
+    //   path: '/v1/messages',
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'x-api-key': ANTHROPIC_API_KEY,
+    //     'anthropic-version': '2023-06-01',
+    //     'Content-Length': Buffer.byteLength(requestData)
+    //   }
+    // };
+
+    // return new Promise((resolve, reject) => {
+    //   const req = https.request(options, (res) => {
+    //     let data = '';
+        
+    //     res.on('data', (chunk) => {
+    //       console.error(JSON.stringify({
+    //         type: 'log',
+    //         level: 'info',
+    //         message: 'anthropic_response_received',
+    //         timestamp: new Date().toISOString(),
+    //         data: chunk,
+    //       }));
+    //       data += chunk;
+    //     });
+        
+    //     res.on('end', () => {
+    //       try {
+    //         console.error(JSON.stringify({
+    //           type: 'log',
+    //           level: 'info',
+    //           message: 'anthropic_response_received',
+    //           timestamp: new Date().toISOString(),
+    //           data,
+    //         }));
+
+    //         const result = JSON.parse(data);
+
+    //         console.log({ result });
+            
+    //         if (result.content && result.content[0] && result.content[0].text) {
+    //           const responseText = result.content[0].text;
+              
+    //           // Extract JSON from the response
+    //           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    //           if (jsonMatch) {
+    //             const securityAnalysis = JSON.parse(jsonMatch[0]);
+                
+    //             // Convert to our internal format
+    //             const issues = securityAnalysis.issues.map(issue => ({
+    //               rule: issue.rule,
+    //               message: issue.message,
+    //               severity: issue.severity || 'error',
+    //               line: issue.line,
+    //               type: 'security',
+    //               suggestion: issue.suggestion
+    //             }));
+                
+    //             console.error(`🛡️ Claude found ${issues.length} security issues`);
+    //             resolve(issues);
+    //           } else {
+    //             console.error('⚠️ Could not parse Claude response');
+    //             reject();
+    //           }
+    //         } else {
+    //           console.error('❌ Invalid Claude API response');
+    //           reject();
+    //         }
+    //       } catch (parseError) {
+    //         console.error('❌ Failed to parse Claude response:', parseError.message);
+    //         reject();
+    //       }
+    //     });
+    //   });
+      
+    //   req.on('error', (error) => {
+    //     console.error('❌ Claude API request failed:', error.message);
+    //     reject();
+    //   });
+      
+    //   req.setTimeout(15000, () => {
+    //     req.destroy();
+    //     console.error('⏰ Claude API timeout');
+    //     reject();
+    //   });
+      
+    //   req.write(requestData);
+    //   req.end();
+    // });
   }
 
   analyzeAntiPatterns(content, filePath) {
-    const issues = [];
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-    for (const pattern of this.antiPatterns) {
-      const lines = content.split("\n");
-      lines.forEach((line, index) => {
-        if (pattern.regex.test(line)) {
-          issues.push({
-            rule: pattern.name,
-            message: pattern.message,
-            severity: pattern.severity,
-            line: index + 1,
-            type: "antipattern",
-            suggestion: pattern.suggestion,
-          });
-        }
-      });
+    const prompt = `You are a senior software architect and code quality expert analyzing JavaScript/TypeScript code for anti-patterns, code smells, and design issues.
+
+Please analyze the following code and identify specific anti-patterns and code quality issues. For each issue found, provide:
+1. The exact line number where the issue occurs (or starting line for multi-line issues)
+2. The anti-pattern/code smell name (use kebab-case like "god-object", "long-parameter-list")
+3. A clear description of the problem
+4. A specific suggestion for refactoring/fixing the issue
+
+Code to analyze:
+\`\`\`javascript
+${content}
+\`\`\`
+
+Please respond in this exact JSON format:
+{
+  "issues": [
+    {
+      "line": 15,
+      "rule": "long-parameter-list",
+      "message": "Function has too many parameters (8), making it hard to use and maintain",
+      "severity": "warning",
+      "suggestion": "Use an options object or break into smaller functions"
     }
+  ]
+}
 
-    return issues;
+Focus on these types of anti-patterns and code smells:
+
+**Structural Anti-Patterns:**
+- God Object/God Class (classes doing too much)
+- Blob/Large Class (classes with too many lines/methods)
+- Spaghetti Code (complex control flow)
+- Copy-Paste Programming (duplicated code blocks)
+- Golden Hammer (overusing one solution)
+- Lava Flow (dead/commented code)
+
+**Method/Function Issues:**
+- Long Method/Function (functions doing too much)
+- Long Parameter List (too many parameters)
+- Feature Envy (accessing other objects' data excessively)
+- Data Clumps (same group of parameters/variables appearing together)
+- Primitive Obsession (using primitives instead of objects)
+- Switch Statement Smell (large switch/if-else chains)
+
+**Class Design Issues:**
+- Refused Bequest (subclass doesn't use parent methods)
+- Lazy Class/Poltergeist (class that doesn't do much)
+- Middle Man (class just delegating to others)
+- Inappropriate Intimacy (classes too tightly coupled)
+- Message Chains/Train Wreck (excessive method chaining)
+- Temporary Field (fields only used sometimes)
+
+**Code Quality Issues:**
+- Magic Numbers/Strings (unexplained literals)
+- Inconsistent Naming (mixed naming conventions)
+- Deep Nesting (too many nested blocks)
+- Boolean Trap (unclear boolean parameters)
+- Shotgun Surgery (one change requires many small changes)
+- Speculative Generality (over-engineering for future needs)
+- Comments That Lie (misleading or outdated comments)
+- Dead Code (unused variables, functions, imports)
+
+**Performance Anti-Patterns:**
+- Premature Optimization (micro-optimizations that hurt readability)
+- N+1 Problems (loops with individual queries/operations)
+- Memory Leaks (unreleased resources, event listeners)
+
+Only include actual design/quality issues, not security vulnerabilities.`;
+
+    const requestData = JSON.stringify({
+      model: 'claude-3-sonnet-20240229',
+      max_tokens: 3000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    });
+
+    const options = {
+      hostname: 'api.anthropic.com',
+      port: 443,
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(requestData)
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let data = '';
+        
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        res.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            
+            if (result.content && result.content[0] && result.content[0].text) {
+              const responseText = result.content[0].text;
+              
+              // Extract JSON from the response
+              const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const antiPatternAnalysis = JSON.parse(jsonMatch[0]);
+                
+                // Convert to our internal format
+                const issues = antiPatternAnalysis.issues.map(issue => ({
+                  rule: issue.rule,
+                  message: issue.message,
+                  severity: issue.severity || 'warning',
+                  line: issue.line,
+                  type: 'antipattern',
+                  suggestion: issue.suggestion
+                }));
+                
+                console.error(`🔧 Claude found ${issues.length} anti-patterns and code smells`);
+                resolve(issues);
+              } else {
+                console.error('⚠️ Could not parse Claude response');
+                reject();
+              }
+            } else {
+              console.error('❌ Invalid Claude API response');
+              reject();
+            }
+          } catch (parseError) {
+            console.error('❌ Failed to parse Claude response:', parseError.message);
+            reject();
+          }
+        });
+      });
+      
+      req.on('error', (error) => {
+        console.error('❌ Claude API request failed:', error.message);
+        reject();
+      });
+      
+      req.setTimeout(20000, () => {
+        req.destroy();
+        console.error('⏰ Claude API timeout');
+        reject();
+      });
+      
+      req.write(requestData);
+      req.end();
+    });
   }
 
   calculateComplexityMetrics(content) {
@@ -225,72 +544,6 @@ export class CodeAnalyzer {
     }
 
     return [...new Set(files)]; // Remove duplicates
-  }
-
-  initializeSecurityPatterns() {
-    return [
-      {
-        name: "hardcoded-secret",
-        regex: /(password|secret|key|token)\s*[:=]\s*['""][^'""\s]{8,}/gi,
-        message: "Potential hardcoded secret or password",
-        severity: "error",
-        suggestion: "Use environment variables or secure configuration",
-      },
-      {
-        name: "sql-injection",
-        regex: /\$\{[^}]*\}|`[^`]*\${[^}]*}[^`]*`/g,
-        message: "Potential SQL injection vulnerability",
-        severity: "error",
-        suggestion: "Use parameterized queries or prepared statements",
-      },
-      {
-        name: "xss-vulnerability",
-        regex: /innerHTML\s*=|document\.write\(/gi,
-        message: "Potential XSS vulnerability",
-        severity: "error",
-        suggestion: "Use textContent or DOM manipulation methods",
-      },
-      {
-        name: "unsafe-eval",
-        regex: /\beval\s*\(/gi,
-        message: "Use of eval() is dangerous",
-        severity: "error",
-        suggestion: "Avoid eval() and use safer alternatives",
-      },
-    ];
-  }
-
-  initializeAntiPatterns() {
-    return [
-      {
-        name: "god-object",
-        regex: /class\s+\w+\s*\{[\s\S]{2000,}/g,
-        message: "Class is too large (God Object anti-pattern)",
-        severity: "warning",
-        suggestion: "Break down into smaller, focused classes",
-      },
-      {
-        name: "magic-numbers",
-        regex: /\b(?!0|1)\d{2,}\b/g,
-        message: "Magic number detected",
-        severity: "warning",
-        suggestion: "Replace with named constants",
-      },
-      {
-        name: "deep-nesting",
-        regex: /(\s{12,}if|\s{12,}for|\s{12,}while)/g,
-        message: "Deep nesting detected",
-        severity: "warning",
-        suggestion: "Extract nested logic into separate functions",
-      },
-      {
-        name: "long-parameter-list",
-        regex: /function\s+\w+\s*\([^)]{100,}\)/g,
-        message: "Function has too many parameters",
-        severity: "warning",
-        suggestion: "Use an options object or reduce parameters",
-      },
-    ];
   }
 
   async getIssueDetails(issueType, codeContext) {

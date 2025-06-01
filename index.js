@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path, { dirname } from 'path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -8,135 +11,103 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { CodeAnalyzer } from './code_analyzer.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Define tools
+const tools = {
+  analyze_file: {
+    name: 'analyze_file',
+    description: 'Analyze a file for code issues, security vulnerabilities, and anti-patterns',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filePath: {
+          type: 'string',
+          description: 'Path to the file to analyze'
+        },
+        analysisTypes: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['lint', 'security', 'complexity', 'antipatterns']
+          },
+          default: ['lint', 'security', 'complexity', 'antipatterns']
+        }
+      },
+      required: ['filePath']
+    }
+  },
+  analyze_directory: {
+    name: 'analyze_directory',
+    description: 'Analyze all files in a directory for code issues',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        directoryPath: {
+          type: 'string',
+          description: 'Path to the directory to analyze'
+        },
+        filePatterns: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'File patterns to include (e.g., "**/*.js", "**/*.ts")',
+          default: ['**/*.js', '**/*.ts', '**/*.jsx', '**/*.tsx']
+        },
+        analysisTypes: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['lint', 'security', 'complexity', 'antipatterns']
+          },
+          default: ['lint', 'security', 'complexity', 'antipatterns']
+        }
+      },
+      required: ['directoryPath']
+    }
+  },
+  get_issue_details: {
+    name: 'get_issue_details',
+    description: 'Get detailed explanation and fix suggestions for a specific issue type',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        issueType: {
+          type: 'string',
+          description: 'The type/rule name of the issue to explain'
+        },
+        codeContext: {
+          type: 'string',
+          description: 'The problematic code snippet (optional)'
+        }
+      },
+      required: ['issueType']
+    }
+  }
+};
+
+// Load environment variables from .env file
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
 // Create server instance
+let transport = null;
 const server = new Server(
   {
     name: 'code-review-server',
     version: '1.0.0',
-  },
-  {
     capabilities: {
-      tools: {},
-    },
+      tools: tools
+    }
   }
 );
 
 // Initialize code analyzer
 let codeAnalyzer = null;
 
-async function initializeAnalyzer() {
-  if (!codeAnalyzer) {
-    try {
-      codeAnalyzer = new CodeAnalyzer();
-      console.error('📊 Code analyzer initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize analyzer:', error);
-      throw error;
-    }
-  }
-}
-
-// Handle listing available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  console.log('🔧 ListTools called');
-  return {
-    tools: [
-      {
-        name: 'analyze_file',
-        description: 'Analyze a file for code issues, security vulnerabilities, and anti-patterns',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            filePath: {
-              type: 'string',
-              description: 'Path to the file to analyze'
-            },
-            analysisTypes: {
-              type: 'array',
-              items: {
-                type: 'string',
-                enum: ['lint', 'security', 'complexity', 'antipatterns']
-              },
-              description: 'Types of analysis to perform (default: all)',
-              default: ['lint', 'security', 'complexity', 'antipatterns']
-            }
-          },
-          required: ['filePath']
-        }
-      },
-      {
-        name: 'analyze_directory',
-        description: 'Analyze all files in a directory for code issues',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            directoryPath: {
-              type: 'string',
-              description: 'Path to the directory to analyze'
-            },
-            filePatterns: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'File patterns to include (e.g., "**/*.js", "**/*.ts")',
-              default: ['**/*.js', '**/*.ts', '**/*.jsx', '**/*.tsx']
-            },
-            analysisTypes: {
-              type: 'array',
-              items: {
-                type: 'string',
-                enum: ['lint', 'security', 'complexity', 'antipatterns']
-              },
-              default: ['lint', 'security', 'complexity', 'antipatterns']
-            }
-          },
-          required: ['directoryPath']
-        }
-      },
-      {
-        name: 'get_issue_details',
-        description: 'Get detailed explanation and fix suggestions for a specific issue type',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            issueType: {
-              type: 'string',
-              description: 'The type/rule name of the issue to explain'
-            },
-            codeContext: {
-              type: 'string',
-              description: 'The problematic code snippet (optional)'
-            }
-          },
-          required: ['issueType']
-        }
-      },
-      // {
-      //   name: 'suggest_fixes',
-      //   description: 'Generate fix suggestions for identified issues',
-      //   inputSchema: {
-      //     type: 'object',
-      //     properties: {
-      //       filePath: {
-      //         type: 'string',
-      //         description: 'Path to the file with issues'
-      //       },
-      //       issues: {
-      //         type: 'array',
-      //         description: 'Array of issues to fix'
-      //       }
-      //     },
-      //     required: ['filePath', 'issues']
-      //   }
-      // }
-    ]
-  };
-});
-
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  console.error(`🚀 Tool called: ${name}`, args);
-
+  
   try {
     await initializeAnalyzer();
 
@@ -150,14 +121,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_issue_details':
         return await handleGetIssueDetails(args);
       
-      case 'suggest_fixes':
-        return await handleSuggestFixes(args);
-
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
-    console.error(`❌ Error in ${name}:`, error);
+    console.error(`Error in tool call ${name}: ${error.message}`);
     return {
       content: [
         {
@@ -174,9 +142,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function handleAnalyzeFile(args) {
   const { filePath, analysisTypes = ['lint', 'security', 'complexity', 'antipatterns'] } = args;
   
-  console.error(`📁 Analyzing file: ${filePath}`);
+  console.log(JSON.stringify({ message: `Analyzing file: ${filePath}` }));
   const results = await codeAnalyzer.analyzeFile(filePath, analysisTypes);
-  console.error(`✅ Analysis complete: ${results.issues.length} issues found`);
+  console.log(JSON.stringify({ message: `Analysis complete: Found ${results.issues.length} issues` }));
   
   return {
     content: [
@@ -195,9 +163,9 @@ async function handleAnalyzeDirectory(args) {
     analysisTypes = ['lint', 'security', 'complexity', 'antipatterns']
   } = args;
   
-  console.error(`📂 Analyzing directory: ${directoryPath}`);
+  console.log(JSON.stringify({ message: `Analyzing directory: ${directoryPath}` }));
   const results = await codeAnalyzer.analyzeDirectory(directoryPath, filePatterns, analysisTypes);
-  console.error(`✅ Directory analysis complete: ${results.length} files analyzed`);
+  console.log(JSON.stringify({ message: `Directory analysis complete: Analyzed ${results.length} files` }));
   
   return {
     content: [
@@ -224,20 +192,75 @@ async function handleGetIssueDetails(args) {
   };
 }
 
-async function handleSuggestFixes(args) {
-  const { filePath, issues } = args;
-  
-  const suggestions = await codeAnalyzer.suggestFixes(filePath, issues);
-  
-  return {
-    content: [
-      {
-        type: 'text',
-        text: suggestions
-      }
-    ]
-  };
+async function initializeAnalyzer() {
+  if (!codeAnalyzer) {
+    try {
+      codeAnalyzer = new CodeAnalyzer();
+      // Send initialization notification in JSON-RPC 2.0 format
+      transport.send({
+        jsonrpc: '2.0',
+        method: 'window/showMessage',
+        params: {
+          type: 3, // Info
+          message: 'Code analyzer initialized',
+        },
+      });
+    } catch (error) {
+      // Send error notification in JSON-RPC 2.0 format
+      transport.send({
+        jsonrpc: '2.0',
+        method: 'window/showMessage',
+        params: {
+          type: 1, // Error
+          message: `Failed to initialize analyzer: ${error.message}`,
+        },
+      });
+      throw error;
+    }
+  }
 }
+
+// Handle listing available tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  // Return tools directly from our tools definition
+  return {
+    tools: Object.values(tools)
+  };
+});
+
+// Handle tool calls
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  try {
+    await initializeAnalyzer();
+
+    switch (name) {
+      case 'analyze_file':
+        return await handleAnalyzeFile(args);
+      
+      case 'analyze_directory':
+        return await handleAnalyzeDirectory(args);
+      
+      case 'get_issue_details':
+        return await handleGetIssueDetails(args);
+      
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error) {
+    console.error(`Error in tool call ${name}: ${error.message}`);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Error: ${error.message}`
+        }
+      ],
+      isError: true
+    };
+  }
+});
 
 // Formatting functions
 function formatAnalysisResults(results, filePath) {
@@ -334,13 +357,38 @@ function getSeverityIcon(severity) {
 
 // Start the server
 async function main() {
-  try {
-    const transport = new StdioServerTransport();
+  transport = new StdioServerTransport();
+  
+  try {  
     await server.connect(transport);
-    console.error('✅ Code Review MCP Server is running');
-    console.error('📋 Capabilities:', JSON.stringify(server.getCapabilities()));
+    // Send server start notification in JSON-RPC 2.0 format
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 3, // Info
+        message: 'Code Review MCP Server is running'
+      }
+    });
+    
+    // Send capabilities initialization
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'initialize',
+      params: {
+        capabilities: server.getCapabilities()
+      }
+    });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    // Send error notification in JSON-RPC 2.0 format
+    transport.send({
+      jsonrpc: '2.0',
+      method: 'window/showMessage',
+      params: {
+        type: 1, // Error
+        message: `Failed to start server: ${error.message}`
+      }
+    });
     process.exit(1);
   }
 }
