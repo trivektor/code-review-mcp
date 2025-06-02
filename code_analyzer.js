@@ -39,10 +39,10 @@ export class CodeAnalyzer {
     }
 
     // Anti-pattern analysis
-    // if (analysisTypes.includes("antipatterns")) {
-    //   const antiPatternIssues = this.analyzeAntiPatterns(fileContent, filePath);
-    //   results.issues.push(...antiPatternIssues);
-    // }
+    if (analysisTypes.includes("antipatterns")) {
+      const antiPatternIssues = await this.analyzeAntiPatterns(fileContent, filePath);
+      results.issues.push(...(antiPatternIssues || []));
+    }
 
     // // Complexity analysis
     // if (analysisTypes.includes("complexity")) {
@@ -115,33 +115,33 @@ Only include actual security issues, not general code quality problems.`;
     try {
       let fullResponse = "";
       // Create streaming response
-      const stream = anthropic.messages
-        .stream({
+      const stream = await anthropic.messages
+        .create({
           model: "claude-3-7-sonnet-20250219",
-          max_tokens: 1024,
+          max_tokens: 10000,
           messages: [{ role: "user", content: prompt }],
-          //system: "You are a helpful assistant.",
+          system: "You are a helpful assistant.",
           stream: true,
         })
-        .on("text", (text) => {
-          fullResponse += text;
-        });
 
-      await stream.finalMessage();
+      for await (const event of stream) {
+        // console.error({ event });
 
-      // Log the full response
-      console.error("Full Claude response received");
-      console.error(fullResponse);
+        if (event.type === "content_block_delta") {
+          fullResponse += event.delta.text;
+        }
+      }
 
       // Parse the JSON response
       const jsonMatch = fullResponse?.match(/\{[\s\S]*\}/);
+
       if (!jsonMatch) {
         throw new Error("Could not parse response as JSON");
       }
 
-      const securityAnalysis = JSON.parse(jsonMatch[0]);
+      const analysis = JSON.parse(jsonMatch[0]);
 
-      const issues = securityAnalysis.issues.map((issue) => ({
+      const issues = analysis.issues.map((issue) => ({
         rule: issue.rule,
         message: issue.message,
         severity: issue.severity || "error",
@@ -157,7 +157,7 @@ Only include actual security issues, not general code quality problems.`;
     }
   }
 
-  analyzeAntiPatterns(content, filePath) {
+  async analyzeAntiPatterns(content, filePath) {
     const prompt = `You are a senior software architect and code quality expert analyzing JavaScript/TypeScript code for anti-patterns, code smells, and design issues.
 
 Please analyze the following code and identify specific anti-patterns and code quality issues. For each issue found, provide:
@@ -226,6 +226,51 @@ Focus on these types of anti-patterns and code smells:
 - Memory Leaks (unreleased resources, event listeners)
 
 Only include actual design/quality issues, not security vulnerabilities.`;
+
+    try {
+      let fullResponse = "";
+      // Create streaming response
+      const stream = await anthropic.messages.create({
+        model: "claude-3-7-sonnet-20250219",
+        max_tokens: 20000,
+        messages: [{ role: "user", content: prompt }],
+        system: "You are a helpful assistant.",
+        stream: true,
+      });
+
+      for await (const event of stream) {
+        // console.error({ event });
+
+        if (event.type === "content_block_delta") {
+          fullResponse += event.delta.text;
+        }
+      }
+
+      console.error({ fullResponse });
+
+      // Parse the JSON response
+      const jsonMatch = fullResponse?.match(/\{[\s\S]*\}/);
+
+      if (!jsonMatch) {
+        throw new Error("Could not parse response as JSON");
+      }
+
+      const analysis = JSON.parse(jsonMatch[0]);
+
+      const issues = analysis.issues.map((issue) => ({
+        rule: issue.rule,
+        message: issue.message,
+        severity: issue.severity || "error",
+        line: issue.line,
+        type: "antipattern",
+        suggestion: issue.suggestion,
+      }));
+
+      return issues;
+    } catch (error) {
+      console.error(`Error analyzing antipattern issues: ${error.message}`);
+      return [];
+    }
   }
 
   calculateComplexityMetrics(content) {

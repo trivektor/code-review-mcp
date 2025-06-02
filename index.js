@@ -149,6 +149,8 @@ async function handleAnalyzeFile(args) {
     analysisTypes = ["security", "complexity", "antipatterns"],
   } = args;
 
+  console.error({ filePath, analysisTypes });
+
   try {
     const results = await codeAnalyzer.analyzeFile(filePath, analysisTypes);
 
