@@ -31,9 +31,9 @@ const tools = {
           type: "array",
           items: {
             type: "string",
-            enum: ["lint", "security", "complexity", "antipatterns"],
+            enum: ["security", "complexity", "antipatterns"],
           },
-          default: ["lint", "security", "complexity", "antipatterns"],
+          default: ["security", "complexity", "antipatterns"],
         },
       },
       required: ["filePath"],
@@ -59,9 +59,9 @@ const tools = {
           type: "array",
           items: {
             type: "string",
-            enum: ["lint", "security", "complexity", "antipatterns"],
+            enum: ["security", "complexity", "antipatterns"],
           },
-          default: ["lint", "security", "complexity", "antipatterns"],
+          default: ["security", "complexity", "antipatterns"],
         },
       },
       required: ["directoryPath"],
@@ -146,7 +146,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function handleAnalyzeFile(args) {
   const {
     filePath,
-    analysisTypes = ["lint", "security", "complexity", "antipatterns"],
+    analysisTypes = ["security", "complexity", "antipatterns"],
   } = args;
 
   try {
@@ -177,7 +177,7 @@ async function handleAnalyzeDirectory(args) {
   const {
     directoryPath,
     filePatterns = ["**/*.js", "**/*.ts", "**/*.jsx", "**/*.tsx"],
-    analysisTypes = ["lint", "security", "complexity", "antipatterns"],
+    analysisTypes = ["security", "complexity", "antipatterns"],
   } = args;
 
   try {

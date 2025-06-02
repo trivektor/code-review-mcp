@@ -1,7 +1,5 @@
-import { ESLint } from "eslint";
 import fs from "fs-extra";
 import { glob } from "glob";
-import https from "https";
 import { Anthropic } from "@anthropic-ai/sdk";
 import { fileURLToPath } from "url";
 import path, { dirname } from "path";
@@ -18,50 +16,6 @@ const anthropic = new Anthropic({
 });
 
 export class CodeAnalyzer {
-  constructor() {
-    this.eslint = new ESLint({
-      baseConfig: {
-        env: {
-          browser: true,
-          node: true,
-          es2021: true,
-        },
-        extends: ["eslint:recommended"],
-        parserOptions: {
-          ecmaVersion: 2021,
-          sourceType: "module",
-        },
-        rules: {
-          // Security rules
-          "no-eval": "error",
-          "no-implied-eval": "error",
-          "no-new-func": "error",
-          "no-script-url": "error",
-
-          // Code quality rules
-          complexity: ["warn", 10],
-          "max-depth": ["warn", 4],
-          "max-lines-per-function": ["warn", 50],
-          "max-params": ["warn", 4],
-
-          // Anti-patterns
-          "no-var": "error",
-          "prefer-const": "error",
-          "no-magic-numbers": ["warn", { ignore: [0, 1, -1] }],
-          "no-console": "warn",
-          "no-debugger": "error",
-          "no-unused-vars": "error",
-          "no-unreachable": "error",
-          "no-undef": "error",
-          "no-redeclare": "error",
-          "no-duplicate-imports": "error",
-        },
-      },
-      useEslintrc: false,
-      //overrideConfigFile: true,
-    });
-  }
-
   async analyzeFile(filePath, analysisTypes) {
     if (!(await fs.pathExists(filePath))) {
       throw new Error(`File not found: ${filePath}`);
@@ -74,12 +28,6 @@ export class CodeAnalyzer {
     };
 
     const fileContent = await fs.readFile(filePath, "utf8");
-
-    // ESLint analysis
-    // if (analysisTypes.includes("lint")) {
-    //   const lintResults = await this.runESLintAnalysis(filePath);
-    //   results.issues.push(...lintResults);
-    // }
 
     // Security analysis
     if (analysisTypes.includes("security")) {
@@ -118,30 +66,6 @@ export class CodeAnalyzer {
     }
 
     return results;
-  }
-
-  async runESLintAnalysis(filePath) {
-    try {
-      const results = await this.eslint.lintFiles([filePath]);
-      const issues = [];
-
-      for (const result of results) {
-        for (const message of result.messages) {
-          issues.push({
-            rule: message.ruleId || "unknown",
-            message: message.message,
-            severity: message.severity === 2 ? "error" : "warning",
-            line: message.line,
-            column: message.column,
-            type: "lint",
-          });
-        }
-      }
-
-      return issues;
-    } catch (error) {
-      return [];
-    }
   }
 
   async analyzeSecurityIssues(content, filePath) {
