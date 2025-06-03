@@ -1,5 +1,5 @@
 {
-  "name": "code-review-mcp-server",
+  "name": "code-analysis-mcp-server",
   "version": "1.0.0",
   "description": "MCP server for code analysis and review",
   "main": "index.js",

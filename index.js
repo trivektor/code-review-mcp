@@ -1,8 +1,3 @@
-#!/usr/bin/env node
-
-import dotenv from "dotenv";
-import { fileURLToPath } from "url";
-import path, { dirname } from "path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -10,9 +5,6 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { CodeAnalyzer } from "./code_analyzer.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Define tools
 const tools = {
@@ -88,13 +80,10 @@ const tools = {
   },
 };
 
-// Load environment variables from .env file
-dotenv.config({ path: path.resolve(__dirname, ".env") });
-
 // Create server instance
 const server = new Server(
   {
-    name: "code-review-server",
+    name: "code-analysis-server",
     version: "1.0.0",
   }
 );
@@ -148,10 +137,11 @@ async function handleAnalyzeFile(args) {
     analysisTypes = ["security", "complexity", "antipatterns"],
   } = args;
 
-  console.error({ filePath, analysisTypes });
+  // Resolve the file path to an absolute path
+  const absoluteFilePath = `${process.env.WORKSPACE_FOLDER_PATHS}/${filePath}`;
 
   try {
-    const results = await codeAnalyzer.analyzeFile(filePath, analysisTypes);
+    const results = await codeAnalyzer.analyzeFile(absoluteFilePath, analysisTypes);
 
     return {
       content: [
