@@ -96,25 +96,24 @@ const server = new Server(
   {
     name: "code-review-server",
     version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools,
-      logging: {},
-    },
   }
 );
 
 // Initialize code analyzer
-let codeAnalyzer = null;
+const codeAnalyzer = new CodeAnalyzer();
+
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  // Return tools directly from our tools definition
+  return {
+    tools: Object.values(tools),
+  };
+});
 
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    await initializeAnalyzer();
-
     switch (name) {
       case "analyze_file":
         return await handleAnalyzeFile(args);
@@ -225,59 +224,6 @@ async function handleGetIssueDetails(args) {
   };
 }
 
-async function initializeAnalyzer() {
-  if (!codeAnalyzer) {
-    try {
-      // Then initialize the analyzer
-      codeAnalyzer = new CodeAnalyzer();
-    } catch (error) {
-      throw error;
-    }
-  }
-}
-
-// Handle listing available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  // Return tools directly from our tools definition
-  return {
-    tools: Object.values(tools),
-  };
-});
-
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    await initializeAnalyzer();
-
-    switch (name) {
-      case "analyze_file":
-        return await handleAnalyzeFile(args);
-
-      case "analyze_directory":
-        return await handleAnalyzeDirectory(args);
-
-      case "get_issue_details":
-        return await handleGetIssueDetails(args);
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (error) {
-    console.error(`Error in tool call ${name}: ${error.message}`);
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${error.message}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-});
-
 // Formatting functions
 function formatAnalysisResults(results, filePath) {
   let output = `# 🔍 Code Analysis Results for ${filePath}\n\n`;
@@ -381,9 +327,6 @@ async function main() {
   try {
     // Then connect the server
     await server.connect(transport);
-
-    // Initialize the analyzer
-    await initializeAnalyzer();
   } catch (error) {
     console.error("❌ Failed to start server:", error);
     process.exit(1);
