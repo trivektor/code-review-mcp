@@ -4,7 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { CodeAnalyzer } from "./code_analyzer.js";
+import { AnthropicAnalyzer } from "./analyzer/index.js";
 
 // Define tools
 const tools = {
@@ -89,7 +89,7 @@ const server = new Server(
 );
 
 // Initialize code analyzer
-const codeAnalyzer = new CodeAnalyzer();
+const codeAnalyzer = new AnthropicAnalyzer();
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   // Return tools directly from our tools definition
