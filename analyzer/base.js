@@ -17,6 +17,7 @@ class CodeAnalyzer {
     // Security analysis
     if (analysisTypes.includes("security")) {
       const securityIssues = await this.analyzeSecurityIssues(
+        filePath,
         fileContent,
         promptPath
       );
@@ -25,7 +26,7 @@ class CodeAnalyzer {
 
     // Anti-pattern analysis
     if (analysisTypes.includes("antipatterns")) {
-      const antiPatternIssues = await this.analyzeAntiPatterns(fileContent, promptPath);
+      const antiPatternIssues = await this.analyzeAntiPatterns(filePath, fileContent, promptPath);
       results.issues.push(...(antiPatternIssues || []));
     }
 
@@ -33,6 +34,27 @@ class CodeAnalyzer {
     // if (analysisTypes.includes("complexity")) {
     //   results.metrics = this.calculateComplexityMetrics(fileContent);
     // }
+
+    return results;
+  }
+
+  async analyzeDirectory(directoryPath, promptPath, analysisTypes) {
+    const results = {
+      directoryPath,
+      issues: [],
+      metrics: null,
+    };
+
+    const files = await fs.readdir(directoryPath);
+
+    for (const file of files) {
+      const filePath = `${directoryPath}/${file}`;
+
+      if (fs.statSync(filePath).isFile()) {
+        const fileResults = await this.analyzeFile(filePath, promptPath, analysisTypes);
+        results.issues.push(...(fileResults.issues || []));
+      }
+    }
 
     return results;
   }

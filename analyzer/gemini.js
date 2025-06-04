@@ -13,13 +13,13 @@ class GeminiAnalyzer extends CodeAnalyzer {
     });
   }
 
-  async analyzeSecurityIssues(analyzedCode, promptPath) {
+  async analyzeSecurityIssues(filePath, fileContent, promptPath) {
     const prompt = `${(await getPrompt(promptPath))}
 
     Code to analyze:
 
     \`\`\`javascript
-    ${analyzedCode}
+    ${fileContent}
     \`\`\`
     `
 
@@ -43,7 +43,7 @@ class GeminiAnalyzer extends CodeAnalyzer {
         rule: issue.rule,
         message: issue.message,
         severity: issue.severity || "error",
-        line: issue.line,
+        line: `${filePath}:${issue.line}`,
         type: "security",
         suggestion: issue.suggestion,
       }));
@@ -55,13 +55,13 @@ class GeminiAnalyzer extends CodeAnalyzer {
     }
   }
 
-  async analyzeAntiPatterns(analyzedCode, promptPath) {
+  async analyzeAntiPatterns(filePath, fileContent, promptPath) {
     const prompt = `${(await getPrompt(promptPath))}
 
 Code to analyze:
 
 \`\`\`javascript
-${analyzedCode}
+${fileContent}
 \`\`\`
 `
 
@@ -84,7 +84,7 @@ ${analyzedCode}
         rule: issue.rule,
         message: issue.message,
         severity: issue.severity || "error",
-        line: issue.line,
+        line: `${filePath}:${issue.line}`,
         type: "antipattern",
         suggestion: issue.suggestion,
       }));

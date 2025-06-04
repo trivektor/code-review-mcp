@@ -14,6 +14,8 @@ const server = new McpServer(
   }
 );
 
+export default server;
+
 server.tool("analyze_file", {
   filePath: z.string(),
   promptPath: z.string(),
@@ -53,4 +55,42 @@ server.tool("analyze_file", {
   }
 });
 
-export default server;
+server.tool("analyze_directory", {
+  directoryPath: z.string(),
+  promptPath: z.string(),
+  analysisTypes: z.array(z.enum(["security", "complexity", "antipatterns"])).default(["security", "complexity", "antipatterns"]),
+}, async (args) => {
+  const {
+    directoryPath,
+    promptPath,
+    analysisTypes = ["security", "complexity", "antipatterns"],
+  } = args;
+
+  const absoluteDirectoryPath = `${process.env.WORKSPACE_FOLDER_PATHS}/${directoryPath}`;
+  const absolutePromptPath = `${process.env.WORKSPACE_FOLDER_PATHS}/${promptPath}`;
+
+  try {
+    const results = await codeAnalyzer.analyzeDirectory(absoluteDirectoryPath, absolutePromptPath, analysisTypes);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: formatAnalysisResults(results, directoryPath),
+        },
+      ],
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error.message}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+});
+
+
