@@ -30,11 +30,6 @@ class CodeAnalyzer {
       results.issues.push(...(antiPatternIssues || []));
     }
 
-    // // Complexity analysis
-    // if (analysisTypes.includes("complexity")) {
-    //   results.metrics = this.calculateComplexityMetrics(fileContent);
-    // }
-
     return results;
   }
 

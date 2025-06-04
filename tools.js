@@ -14,9 +14,9 @@ const tools = {
           type: "array",
           items: {
             type: "string",
-            enum: ["security", "complexity", "antipatterns"],
+            enum: ["security", "antipatterns"],
           },
-          default: ["security", "complexity", "antipatterns"],
+          default: ["security", "antipatterns"],
         },
       },
       required: ["filePath"],
@@ -42,9 +42,9 @@ const tools = {
           type: "array",
           items: {
             type: "string",
-            enum: ["security", "complexity", "antipatterns"],
+            enum: ["security", "antipatterns"],
           },
-          default: ["security", "complexity", "antipatterns"],
+          default: ["security", "antipatterns"],
         },
       },
       required: ["directoryPath"],
