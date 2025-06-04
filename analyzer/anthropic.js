@@ -1,75 +1,17 @@
-import fs from "fs-extra";
-import { glob } from "glob";
 import { Anthropic } from "@anthropic-ai/sdk";
-import { fileURLToPath } from "url";
-import path, { dirname } from "path";
-import dotenv from "dotenv";
+import CodeAnalyzer from "./base.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+class AnthropicAnalyzer extends CodeAnalyzer {
+  constructor() {
+    super();
 
-// Load environment variables from .env file
-dotenv.config({ path: path.resolve(__dirname, ".env") });
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-export class CodeAnalyzer {
-  async analyzeFile(filePath, analysisTypes) {
-    if (!(await fs.pathExists(filePath))) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-
-    const results = {
-      filePath,
-      issues: [],
-      metrics: null,
-    };
-
-    const fileContent = await fs.readFile(filePath, "utf8");
-
-    // Security analysis
-    if (analysisTypes.includes("security")) {
-      const securityIssues = await this.analyzeSecurityIssues(
-        fileContent,
-        filePath
-      );
-      results.issues.push(...(securityIssues || []));
-    }
-
-    // Anti-pattern analysis
-    if (analysisTypes.includes("antipatterns")) {
-      const antiPatternIssues = await this.analyzeAntiPatterns(fileContent, filePath);
-      results.issues.push(...(antiPatternIssues || []));
-    }
-
-    // // Complexity analysis
-    // if (analysisTypes.includes("complexity")) {
-    //   results.metrics = this.calculateComplexityMetrics(fileContent);
-    // }
-
-    return results;
-  }
-
-  async analyzeDirectory(directoryPath, filePatterns, analysisTypes) {
-    const files = await this.findFiles(directoryPath, filePatterns);
-    const results = [];
-
-    for (const file of files) {
-      try {
-        const result = await this.analyzeFile(file, analysisTypes);
-        results.push(result);
-      } catch (error) {
-        console.error(`Error analyzing ${file}:`, error.message);
-      }
-    }
-
-    return results;
+    this.anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
   }
 
   async analyzeSecurityIssues(content, filePath) {
-    const prompt = `You are a security expert analyzing JavaScript/TypeScript code for vulnerabilities. 
+    const prompt = `You are a security expert analyzing JavaScript/TypeScript code for vulnerabilities.
 
 Please analyze the following code and identify specific security issues. For each issue found, provide:
 1. The exact line number where the issue occurs
@@ -97,7 +39,7 @@ Please respond in this exact JSON format:
 
 Focus on these types of security vulnerabilities:
 - Hardcoded secrets, passwords, API keys
-- SQL injection vulnerabilities  
+- SQL injection vulnerabilities
 - Cross-site scripting (XSS) risks
 - Unsafe eval() usage
 - Command injection risks
@@ -115,7 +57,7 @@ Only include actual security issues, not general code quality problems.`;
     try {
       let fullResponse = "";
       // Create streaming response
-      const stream = await anthropic.messages
+      const stream = await this.anthropic.messages
         .create({
           model: "claude-3-7-sonnet-20250219",
           max_tokens: 10000,
@@ -230,7 +172,7 @@ Only include actual design/quality issues, not security vulnerabilities.`;
     try {
       let fullResponse = "";
       // Create streaming response
-      const stream = await anthropic.messages.create({
+      const stream = await this.anthropic.messages.create({
         model: "claude-3-7-sonnet-20250219",
         max_tokens: 20000,
         messages: [{ role: "user", content: prompt }],
@@ -272,123 +214,6 @@ Only include actual design/quality issues, not security vulnerabilities.`;
       return [];
     }
   }
-
-  calculateComplexityMetrics(content) {
-    const lines = content.split("\n");
-    const linesOfCode = lines.filter(
-      (line) =>
-        line.trim() &&
-        !line.trim().startsWith("//") &&
-        !line.trim().startsWith("/*")
-    ).length;
-
-    // Simple cyclomatic complexity calculation
-    const complexityKeywords =
-      /\b(if|else|while|for|switch|case|catch|&&|\|\||\?)\b/g;
-    const complexityMatches = content.match(complexityKeywords) || [];
-    const complexity = complexityMatches.length + 1;
-
-    // Basic maintainability index (simplified)
-    const maintainability = Math.max(
-      0,
-      Math.min(
-        100,
-        171 -
-          5.2 * Math.log(linesOfCode) -
-          0.23 * complexity -
-          16.2 * Math.log(linesOfCode)
-      )
-    );
-
-    return {
-      linesOfCode,
-      complexity,
-      maintainability: Math.round(maintainability),
-    };
-  }
-
-  async findFiles(directoryPath, patterns) {
-    const files = [];
-
-    for (const pattern of patterns) {
-      const fullPattern = path.join(directoryPath, pattern);
-      const matches = await glob(fullPattern, {
-        ignore: ["**/node_modules/**", "**/.git/**"],
-      });
-      files.push(...matches);
-    }
-
-    return [...new Set(files)]; // Remove duplicates
-  }
-
-  async getIssueDetails(issueType, codeContext) {
-    const explanations = {
-      "hardcoded-secret": `
-# Hardcoded Secrets
-
-**Risk**: Hardcoding secrets in source code is a major security vulnerability.
-
-**Why it's dangerous**:
-- Secrets are visible to anyone with code access
-- Version control systems store the history
-- Deployed applications expose secrets
-
-**Fix**:
-\`\`\`javascript
-// Bad
-const apiKey = "sk-1234567890abcdef";
-
-// Good
-const apiKey = process.env.API_KEY;
-\`\`\`
-      `,
-      complexity: `
-# Cyclomatic Complexity
-
-**What it measures**: The number of linearly independent paths through code.
-
-**High complexity problems**:
-- Hard to test thoroughly
-- More likely to contain bugs
-- Difficult to maintain
-
-**How to reduce**:
-- Extract functions
-- Use early returns
-- Simplify conditional logic
-      `,
-    };
-
-    return (
-      explanations[issueType] ||
-      `No detailed explanation available for: ${issueType}`
-    );
-  }
-
-  async suggestFixes(filePath, issues) {
-    let suggestions = `# Fix Suggestions for ${filePath}\n\n`;
-
-    const groupedIssues = issues.reduce((groups, issue) => {
-      if (!groups[issue.type]) groups[issue.type] = [];
-      groups[issue.type].push(issue);
-      return groups;
-    }, {});
-
-    for (const [type, typeIssues] of Object.entries(groupedIssues)) {
-      suggestions += `## ${type.toUpperCase()} Issues\n\n`;
-
-      typeIssues.forEach((issue, index) => {
-        suggestions += `### ${issue.rule} (Line ${issue.line})\n`;
-        suggestions += `**Problem**: ${issue.message}\n\n`;
-
-        if (issue.suggestion) {
-          suggestions += `**Solution**: ${issue.suggestion}\n\n`;
-        }
-
-        suggestions += "---\n\n";
-      });
-    }
-
-    return suggestions;
-  }
 }
+
+export default AnthropicAnalyzer;
