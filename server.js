@@ -19,12 +19,12 @@ export default server;
 server.tool("analyze_file", {
   filePath: z.string(),
   promptPath: z.string(),
-  analysisTypes: z.array(z.enum(["security", "antipatterns"])).default(["security", "antipatterns"]),
+  analysisTypes: z.array(z.enum(["security", "code smells"])).default(["security", "code smells"]),
 }, async (args) => {
   const {
     filePath,
     promptPath,
-    analysisTypes = ["security", "antipatterns"],
+    analysisTypes = ["security", "code smells"],
   } = args;
 
   // Resolve the file path to an absolute path
@@ -58,12 +58,12 @@ server.tool("analyze_file", {
 server.tool("analyze_directory", {
   directoryPath: z.string(),
   promptPath: z.string(),
-  analysisTypes: z.array(z.enum(["security", "antipatterns"])).default(["security", "antipatterns"]),
+  analysisTypes: z.array(z.enum(["security", "code smells"])).default(["security", "code smells"]),
 }, async (args) => {
   const {
     directoryPath,
     promptPath,
-    analysisTypes = ["security", "antipatterns"],
+    analysisTypes = ["security", "code smells"],
   } = args;
 
   const absoluteDirectoryPath = `${process.env.WORKSPACE_FOLDER_PATHS}/${directoryPath}`;

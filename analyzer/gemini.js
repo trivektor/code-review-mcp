@@ -55,7 +55,7 @@ class GeminiAnalyzer extends CodeAnalyzer {
     }
   }
 
-  async analyzeAntiPatterns(filePath, fileContent, promptPath) {
+  async analyzeCodeSmells(filePath, fileContent, promptPath) {
     const prompt = `${(await getPrompt(promptPath))}
 
 Code to analyze:
@@ -85,13 +85,13 @@ ${fileContent}
         message: issue.message,
         severity: issue.severity || "error",
         line: `${filePath}:${issue.line}`,
-        type: "antipattern",
+        type: "code smells",
         suggestion: issue.suggestion,
       }));
 
       return issues;
     } catch (error) {
-      console.error(`Error analyzing antipattern issues: ${error.message}`);
+      console.error(`Error analyzing code smells issues: ${error.message}`);
       return [];
     }
   }

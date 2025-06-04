@@ -2,7 +2,7 @@ const tools = {
   analyze_file: {
     name: "analyze_file",
     description:
-      "Analyze a file for code issues, security vulnerabilities, and anti-patterns",
+      "Analyze a file for code smells, security vulnerabilities etc.",
     inputSchema: {
       type: "object",
       properties: {
@@ -14,9 +14,9 @@ const tools = {
           type: "array",
           items: {
             type: "string",
-            enum: ["security", "antipatterns"],
+            enum: ["security", "code smells"],
           },
-          default: ["security", "antipatterns"],
+          default: ["security", "code smells"],
         },
       },
       required: ["filePath"],
@@ -42,9 +42,9 @@ const tools = {
           type: "array",
           items: {
             type: "string",
-            enum: ["security", "antipatterns"],
+            enum: ["security", "code smells"],
           },
-          default: ["security", "antipatterns"],
+          default: ["security", "code smells"],
         },
       },
       required: ["directoryPath"],
