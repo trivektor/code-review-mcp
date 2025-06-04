@@ -1,3 +1,16 @@
+import fs from "fs/promises";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export async function getPrompt(promptPath) {
+  const promptContent = await fs.readFile(promptPath, 'utf8');
+
+  return promptContent;
+}
 
 export function formatAnalysisResults(results, filePath) {
   let output = `# 🔍 Code Analysis Results for ${filePath}\n\n`;

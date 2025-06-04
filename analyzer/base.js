@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 
 class CodeAnalyzer {
-  async analyzeFile(filePath, analysisTypes) {
+  async analyzeFile(filePath, promptPath, analysisTypes) {
     if (!(await fs.pathExists(filePath))) {
       throw new Error(`File not found: ${filePath}`);
     }
@@ -18,14 +18,14 @@ class CodeAnalyzer {
     if (analysisTypes.includes("security")) {
       const securityIssues = await this.analyzeSecurityIssues(
         fileContent,
-        filePath
+        promptPath
       );
       results.issues.push(...(securityIssues || []));
     }
 
     // Anti-pattern analysis
     if (analysisTypes.includes("antipatterns")) {
-      const antiPatternIssues = await this.analyzeAntiPatterns(fileContent, filePath);
+      const antiPatternIssues = await this.analyzeAntiPatterns(fileContent, promptPath);
       results.issues.push(...(antiPatternIssues || []));
     }
 
