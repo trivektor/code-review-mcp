@@ -9,7 +9,6 @@ class CodeAnalyzer {
     const results = {
       filePath,
       issues: [],
-      metrics: null,
     };
 
     const fileContent = await fs.readFile(filePath, "utf8");
@@ -24,10 +23,10 @@ class CodeAnalyzer {
       results.issues.push(...(securityIssues || []));
     }
 
-    // Anti-pattern analysis
-    if (analysisTypes.includes("antipatterns")) {
-      const antiPatternIssues = await this.analyzeAntiPatterns(filePath, fileContent, promptPath);
-      results.issues.push(...(antiPatternIssues || []));
+    // code smells analysis
+    if (analysisTypes.includes("code smells")) {
+      const codeSmellIssues = await this.analyzeCodeSmells(filePath, fileContent, promptPath);
+      results.issues.push(...(codeSmellIssues || []));
     }
 
     return results;
@@ -37,16 +36,16 @@ class CodeAnalyzer {
     const results = {
       directoryPath,
       issues: [],
-      metrics: null,
     };
 
-    const files = await fs.readdir(directoryPath);
+    const entries = await fs.readdir(directoryPath, { recursive: true });
 
-    for (const file of files) {
-      const filePath = `${directoryPath}/${file}`;
+    for (const entry of entries) {
+      const filePath = `${directoryPath}/${entry}`;
 
       if (fs.statSync(filePath).isFile()) {
         const fileResults = await this.analyzeFile(filePath, promptPath, analysisTypes);
+
         results.issues.push(...(fileResults.issues || []));
       }
     }

@@ -13,8 +13,7 @@ export async function getPrompt(promptPath) {
 }
 
 export function formatAnalysisResults(results, filePath) {
-  let output = `# 🔍 Code Analysis Results for ${filePath}\n\n`;
-  output += `*Analysis performed by MCP Code Review Server*\n\n`;
+  let output = `# 🔍 Code Analysis Results\n\n`;
 
   if (results.issues.length === 0) {
     output += "✅ No issues found!\n";
@@ -37,15 +36,6 @@ export function formatAnalysisResults(results, filePath) {
       });
     }
   }
-
-  if (results.metrics) {
-    output += `## 📊 Code Metrics\n`;
-    output += `- Complexity Score: ${results.metrics.complexity}\n`;
-    output += `- Lines of Code: ${results.metrics.linesOfCode}\n`;
-    output += `- Maintainability Index: ${results.metrics.maintainability}\n\n`;
-  }
-
-  output += `---\n*Powered by MCP Code Review Server v1.0.0*`;
 
   return output;
 }
