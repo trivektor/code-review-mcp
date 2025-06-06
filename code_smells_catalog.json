@@ -1,0 +1,147 @@
+[
+  {
+    "name": "Clever Code",
+    "description": "I am creating a conscious distinction between the Obscured Intent and Clever Code. While Obscured Intent addresses the ambiguity of implementation, Clever Code refers to unnecessarily complex solutions that prioritize showing off programming skills over readability and maintainability.",
+    "example": "// Clever but hard to understand\nconst result = arr.reduce((a,b,i,arr)=>i%2?a+b*arr[i-1]:a,0);\n\n// Better: clear and readable\nlet result = 0;\nfor (let i = 1; i < arr.length; i += 2) {\n  result += arr[i] * arr[i-1];\n}"
+  },
+  {
+    "name": "Duplicated Code",
+    "description": "Duplicated Code does not need further explanation. According to Fowler, redundant code is one of the worst smells. One thing is that this makes maintenance harder because changes need to be made in multiple places, and it's easy to miss updating all copies.",
+    "example": "// Duplicated code\nfunction calculateTaxForProduct(price) {\n  return price * 0.08;\n}\n\nfunction calculateTaxForService(price) {\n  return price * 0.08;\n}\n\n// Better: extract common functionality\nfunction calculateTax(price) {\n  return price * 0.08;\n}"
+  },
+  {
+    "name": "Fallacious Comment",
+    "description": "Comments differ from most other syntaxes available in programming languages; it is not executed. This might lead to situations where, after code changes, the comments become outdated and misleading, providing false information about what the code actually does.",
+    "example": "// Calculate the sum of two numbers\nfunction multiply(a, b) {\n  return a * b; // Comment is wrong!\n}\n\n// Better: correct comment or no comment needed\nfunction multiply(a, b) {\n  return a * b;\n}"
+  },
+  {
+    "name": "Fallacious Method Name",
+    "description": "When I started to think of Code Smells from the comprehensibility perspective as one of the critical factors, method names that don't accurately describe what the method does create confusion and make code harder to understand and maintain.",
+    "example": "// Misleading name\nfunction getUserData() {\n  return users.filter(user => user.isActive);\n}\n\n// Better: accurate name\nfunction getActiveUsers() {\n  return users.filter(user => user.isActive);\n}"
+  },
+  {
+    "name": "Afraid To Fail",
+    "description": "The Afraid To Fail is a Code Smell name inspired by the common fear of failure, which is professionally called defensive programming taken to extremes. This involves excessive error checking and validation that makes code unnecessarily complex.",
+    "example": "// Overly defensive\nfunction divide(a, b) {\n  if (typeof a !== 'number') throw new Error('a must be number');\n  if (typeof b !== 'number') throw new Error('b must be number');\n  if (b === 0) throw new Error('Division by zero');\n  if (a === null || a === undefined) throw new Error('a cannot be null');\n  if (b === null || b === undefined) throw new Error('b cannot be null');\n  return a / b;\n}\n\n// Better: reasonable validation\nfunction divide(a, b) {\n  if (b === 0) throw new Error('Division by zero');\n  return a / b;\n}"
+  },
+  {
+    "name": "Alternative Classes with Different Interfaces",
+    "description": "If two classes have the same functionality but different implementations, developers should merge them, or at least make their interfaces consistent to reduce confusion and duplication.",
+    "example": "// Different interfaces for same functionality\nclass EmailSender {\n  sendEmail(to, subject, body) { /* ... */ }\n}\n\nclass SMSSender {\n  transmitMessage(phoneNumber, text) { /* ... */ }\n}\n\n// Better: consistent interface\nclass EmailSender {\n  send(to, subject, body) { /* ... */ }\n}\n\nclass SMSSender {\n  send(to, subject, body) { /* ... */ }\n}"
+  },
+  {
+    "name": "Base Class depends on Subclass",
+    "description": "The rule is that the child classes should be deployable independently from the parent class. That allows us to deploy the system in parts without breaking dependencies. When a base class depends on its subclasses, it violates this principle.",
+    "example": "// Bad: base class knows about subclass\nclass Animal {\n  makeSound() {\n    if (this instanceof Dog) {\n      return 'woof';\n    }\n    if (this instanceof Cat) {\n      return 'meow';\n    }\n  }\n}\n\n// Better: use polymorphism\nclass Animal {\n  makeSound() {\n    throw new Error('Must be implemented by subclass');\n  }\n}\n\nclass Dog extends Animal {\n  makeSound() { return 'woof'; }\n}"
+  },
+  {
+    "name": "Boolean Blindness",
+    "description": "In the Haskell community, there is a well-known question about the filter function - does the filter predicate mean to keep or to remove items? This ambiguity with boolean parameters makes code harder to understand.",
+    "example": "// Boolean blindness\nfunction processUser(user, flag) {\n  if (flag) {\n    activateUser(user);\n  } else {\n    deactivateUser(user);\n  }\n}\nprocessUser(user, true); // What does true mean?\n\n// Better: explicit parameters\nfunction processUser(user, shouldActivate) {\n  if (shouldActivate) {\n    activateUser(user);\n  } else {\n    deactivateUser(user);\n  }\n}\nprocessUser(user, true); // Still not great\n\n// Even better: separate methods\nfunction activateUser(user) { /* ... */ }\nfunction deactivateUser(user) { /* ... */ }\nactivateUser(user); // Clear intent"
+  },
+  {
+    "name": "Callback Hell",
+    "description": "Smell with a scent similar to the Conditional Complexity, where callbacks are nested deep, and the curly closing brackets can cascade like a Niagara Falls, making code hard to read and maintain.",
+    "example": "// Callback hell\ngetUser(id, function(user) {\n  getProfile(user.id, function(profile) {\n    getPreferences(profile.id, function(prefs) {\n      updateDisplay(user, profile, prefs, function(result) {\n        console.log('Done');\n      });\n    });\n  });\n});\n\n// Better: using async/await\nasync function updateUserDisplay(id) {\n  const user = await getUser(id);\n  const profile = await getProfile(user.id);\n  const prefs = await getPreferences(profile.id);\n  const result = await updateDisplay(user, profile, prefs);\n  console.log('Done');\n}"
+  },
+  {
+    "name": "Combinatorial Explosion",
+    "description": "The Combinatorial Explosion occurs when a lot of code does almost the same thing - here, the word 'almost' is crucial. The number of cases grows exponentially, creating many similar but slightly different implementations.",
+    "example": "// Combinatorial explosion\nfunction processEmailAlert() { /* ... */ }\nfunction processEmailWarning() { /* ... */ }\nfunction processSMSAlert() { /* ... */ }\nfunction processSMSWarning() { /* ... */ }\nfunction processPushAlert() { /* ... */ }\nfunction processPushWarning() { /* ... */ }\n\n// Better: parameterized approach\nfunction processNotification(type, severity) {\n  const processor = notificationProcessors[type][severity];\n  return processor();\n}"
+  },
+  {
+    "name": "Complicated Boolean Expression",
+    "description": "One should keep in mind that Boolean Expressions can be troublesome for some people (in other words, not as quick to comprehend as if statements). Complex boolean expressions reduce readability and increase the chance of logical errors.",
+    "example": "// Complicated boolean expression\nif ((user.age >= 18 && user.hasLicense) || (user.age >= 16 && user.hasPermit && user.hasGuardian)) {\n  allowDriving(user);\n}\n\n// Better: extract to meaningful functions\nfunction canDriveAlone(user) {\n  return user.age >= 18 && user.hasLicense;\n}\n\nfunction canDriveWithGuardian(user) {\n  return user.age >= 16 && user.hasPermit && user.hasGuardian;\n}\n\nif (canDriveAlone(user) || canDriveWithGuardian(user)) {\n  allowDriving(user);\n}"
+  },
+  {
+    "name": "Complicated Regex Expression",
+    "description": "Two bad things can be done that I would refer to as Complicated Regex Expression. First and foremost, we should avoid the unnecessary complexity in regex patterns that make them hard to understand and maintain.",
+    "example": "// Complicated regex\nconst emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;\n\n// Better: use a library or break it down\nfunction isValidEmail(email) {\n  const parts = email.split('@');\n  if (parts.length !== 2) return false;\n  \n  const [localPart, domain] = parts;\n  return isValidLocalPart(localPart) && isValidDomain(domain);\n}\n\nfunction isValidLocalPart(part) {\n  return /^[a-zA-Z0-9._%+-]+$/.test(part);\n}\n\nfunction isValidDomain(domain) {\n  return /^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/.test(domain);\n}"
+  },
+  {
+    "name": "Conditional Complexity",
+    "description": "In data-oriented programming, the usage of switch-like statements (lengthy, cascading statements or if/else chains) should be relatively rare. One such complex conditional structure makes code hard to understand and maintain.",
+    "example": "// Complex conditional\nfunction calculateShipping(weight, distance, priority) {\n  if (weight < 1) {\n    if (distance < 100) {\n      if (priority === 'express') {\n        return 15;\n      } else {\n        return 5;\n      }\n    } else {\n      if (priority === 'express') {\n        return 25;\n      } else {\n        return 10;\n      }\n    }\n  } else {\n    // More nested conditions...\n  }\n}\n\n// Better: use strategy pattern or lookup table\nconst shippingRates = {\n  'light-local-express': 15,\n  'light-local-standard': 5,\n  'light-distant-express': 25,\n  'light-distant-standard': 10\n};\n\nfunction calculateShipping(weight, distance, priority) {\n  const weightCategory = weight < 1 ? 'light' : 'heavy';\n  const distanceCategory = distance < 100 ? 'local' : 'distant';\n  const key = `${weightCategory}-${distanceCategory}-${priority}`;\n  return shippingRates[key] || 0;\n}"
+  },
+  {
+    "name": "Data Clump",
+    "description": "Data Clumps refer to a situation in which a few variables are passed around many times in the codebase instead of being packed into a separate object. These variables always appear together and should be grouped.",
+    "example": "// Data clump\nfunction createUser(firstName, lastName, email, phone, street, city, zipCode) {\n  // ...\n}\n\nfunction updateUser(id, firstName, lastName, email, phone, street, city, zipCode) {\n  // ...\n}\n\n// Better: group related data\nclass Address {\n  constructor(street, city, zipCode) {\n    this.street = street;\n    this.city = city;\n    this.zipCode = zipCode;\n  }\n}\n\nclass ContactInfo {\n  constructor(email, phone) {\n    this.email = email;\n    this.phone = phone;\n  }\n}\n\nfunction createUser(firstName, lastName, contactInfo, address) {\n  // ...\n}"
+  },
+  {
+    "name": "Dead Code",
+    "description": "If part of the code is not executed, it is Dead Code. This code smell includes any place that the code executor will never reach, including unreachable code after return statements, unused functions, or commented-out code.",
+    "example": "// Dead code examples\nfunction processData(data) {\n  if (data.length === 0) {\n    return null;\n  }\n  \n  return data.map(item => item.value);\n  \n  // This code is never reached\n  console.log('Processing complete');\n}\n\n// Unused function\nfunction oldFunction() {\n  // This function is never called\n}\n\n// Better: remove dead code\nfunction processData(data) {\n  if (data.length === 0) {\n    return null;\n  }\n  \n  const result = data.map(item => item.value);\n  console.log('Processing complete');\n  return result;\n}"
+  },
+  {
+    "name": "Feature Envy",
+    "description": "If a method inside a class manipulates more features (be it fields or methods) of another class more than from its own, then this method has a Feature Envy. It suggests the method should probably be moved to the other class.",
+    "example": "// Feature envy\nclass Customer {\n  constructor(name, address) {\n    this.name = name;\n    this.address = address;\n  }\n}\n\nclass Order {\n  constructor(customer) {\n    this.customer = customer;\n  }\n  \n  getCustomerInfo() {\n    // This method is more interested in Customer than Order\n    return `${this.customer.name} at ${this.customer.address.street}, ${this.customer.address.city}`;\n  }\n}\n\n// Better: move method to appropriate class\nclass Customer {\n  constructor(name, address) {\n    this.name = name;\n    this.address = address;\n  }\n  \n  getDisplayInfo() {\n    return `${this.name} at ${this.address.street}, ${this.address.city}`;\n  }\n}\n\nclass Order {\n  constructor(customer) {\n    this.customer = customer;\n  }\n  \n  getCustomerInfo() {\n    return this.customer.getDisplayInfo();\n  }\n}"
+  },
+  {
+    "name": "Global Data",
+    "description": "The Global Data is quite similar to the Middle Man code smell, but here rather than a class, the broker is the global scope in which the data is freely available to everyone. These global scope variables are undesirable because they create hidden dependencies.",
+    "example": "// Global data\nlet currentUser = null;\nlet appSettings = {};\n\nfunction login(username, password) {\n  currentUser = authenticateUser(username, password);\n}\n\nfunction updateProfile(data) {\n  currentUser.profile = data; // Hidden dependency on global\n}\n\n// Better: dependency injection\nclass UserService {\n  constructor() {\n    this.currentUser = null;\n  }\n  \n  login(username, password) {\n    this.currentUser = authenticateUser(username, password);\n  }\n  \n  updateProfile(data) {\n    if (!this.currentUser) throw new Error('No user logged in');\n    this.currentUser.profile = data;\n  }\n}"
+  },
+  {
+    "name": "Large Class",
+    "description": "When one combines the smell of Long Method and Long Parameter List, but on a higher abstraction level, then he would get the Large Class code smell. Many responsibilities crammed into a single class make it hard to understand and maintain.",
+    "example": "// Large class with too many responsibilities\nclass User {\n  constructor(name, email) {\n    this.name = name;\n    this.email = email;\n  }\n  \n  // Authentication responsibilities\n  login(password) { /* ... */ }\n  logout() { /* ... */ }\n  \n  // Email responsibilities\n  sendEmail(subject, body) { /* ... */ }\n  validateEmail() { /* ... */ }\n  \n  // Profile responsibilities\n  updateProfile(data) { /* ... */ }\n  getProfilePicture() { /* ... */ }\n  \n  // Database responsibilities\n  save() { /* ... */ }\n  delete() { /* ... */ }\n}\n\n// Better: separate concerns\nclass User {\n  constructor(name, email) {\n    this.name = name;\n    this.email = email;\n  }\n}\n\nclass AuthenticationService {\n  login(user, password) { /* ... */ }\n  logout(user) { /* ... */ }\n}\n\nclass EmailService {\n  sendEmail(user, subject, body) { /* ... */ }\n  validateEmail(email) { /* ... */ }\n}\n\nclass UserRepository {\n  save(user) { /* ... */ }\n  delete(user) { /* ... */ }\n}"
+  },
+  {
+    "name": "Long Method",
+    "description": "One of the most apparent complications developers can encounter in the code is the length of a method. The more lines of code a function has, the more difficult it becomes to understand what it's doing and to modify it safely.",
+    "example": "// Long method\nfunction processOrder(order) {\n  // Validate order (10 lines)\n  if (!order.items || order.items.length === 0) {\n    throw new Error('Order must have items');\n  }\n  // Calculate totals (15 lines)\n  let subtotal = 0;\n  for (let item of order.items) {\n    subtotal += item.price * item.quantity;\n  }\n  // Apply discounts (20 lines)\n  let discount = 0;\n  if (order.customer.isPremium) {\n    discount = subtotal * 0.1;\n  }\n  // Process payment (25 lines)\n  // Send notifications (10 lines)\n  // Update inventory (15 lines)\n  // Generate receipt (20 lines)\n}\n\n// Better: extract smaller methods\nfunction processOrder(order) {\n  validateOrder(order);\n  const subtotal = calculateSubtotal(order);\n  const discount = calculateDiscount(order, subtotal);\n  const total = subtotal - discount;\n  processPayment(order, total);\n  sendNotifications(order);\n  updateInventory(order);\n  return generateReceipt(order, total);\n}"
+  },
+  {
+    "name": "Long Parameter List",
+    "description": "This is another code smell at the same abstraction level as Long Method which usually occurs when three, four, or more parameters are given as arguments to a function, making it hard to understand and use.",
+    "example": "// Long parameter list\nfunction createUser(firstName, lastName, email, phone, street, city, state, zipCode, country, birthDate, gender, occupation) {\n  // ...\n}\n\n// Better: use objects to group parameters\nfunction createUser(personalInfo, contactInfo, address) {\n  // ...\n}\n\n// Or use a configuration object\nfunction createUser(userConfig) {\n  const {\n    personalInfo: { firstName, lastName, birthDate, gender, occupation },\n    contactInfo: { email, phone },\n    address: { street, city, state, zipCode, country }\n  } = userConfig;\n  // ...\n}"
+  },
+  {
+    "name": "Magic Number",
+    "description": "The problem with floats and integers is that they convey no meaning - there is only context, which is often not enough, and even if one might think it is obvious, it may not be for others or for yourself after some time.",
+    "example": "// Magic numbers\nfunction calculateDamage(baseDamage) {\n  const total = baseDamage * 1.5; // What is 1.5?\n  return Math.max(100, total); // What is 100?\n}\n\nfunction processPayment(amount) {\n  if (amount > 10000) { // What is special about 10000?\n    requireApproval();\n  }\n  const fee = amount * 0.025; // What is 0.025?\n  return amount + fee;\n}\n\n// Better: use named constants\nconst CRITICAL_HIT_MULTIPLIER = 1.5;\nconst MAX_DAMAGE_CAP = 100;\nconst LARGE_PAYMENT_THRESHOLD = 10000;\nconst PROCESSING_FEE_RATE = 0.025;\n\nfunction calculateDamage(baseDamage) {\n  const total = baseDamage * CRITICAL_HIT_MULTIPLIER;\n  return Math.max(MAX_DAMAGE_CAP, total);\n}\n\nfunction processPayment(amount) {\n  if (amount > LARGE_PAYMENT_THRESHOLD) {\n    requireApproval();\n  }\n  const fee = amount * PROCESSING_FEE_RATE;\n  return amount + fee;\n}"
+  },
+  {
+    "name": "Middle Man",
+    "description": "The class that only performs delegation work to other classes is called a Middle Man. This is the opposite of the Message Chains. Encapsulation in Object-Oriented Programming is typical, but the problem arises when it goes too far.",
+    "example": "// Middle man - excessive delegation\nclass Customer {\n  constructor(name, address) {\n    this.name = name;\n    this.address = address;\n  }\n  \n  getName() { return this.name; }\n  getStreet() { return this.address.getStreet(); }\n  getCity() { return this.address.getCity(); }\n  getState() { return this.address.getState(); }\n  getZipCode() { return this.address.getZipCode(); }\n}\n\n// Better: provide direct access or meaningful abstraction\nclass Customer {\n  constructor(name, address) {\n    this.name = name;\n    this.address = address; // Direct access\n  }\n  \n  getName() { return this.name; }\n  getAddress() { return this.address; } // Return the object itself\n  getShippingLabel() { // Meaningful abstraction\n    return this.address.getFormattedAddress();\n  }\n}"
+  },
+  {
+    "name": "Mutable Data",
+    "description": "Mutable data are harmful because they can unexpectedly fail other parts of the code. It is a rich source of bugs that are hard to spot because they can occur under rare conditions. Immutable data structures help prevent these issues.",
+    "example": "// Mutable data problems\nlet config = { apiUrl: 'https://api.example.com', timeout: 5000 };\n\nfunction setupClient() {\n  config.timeout = 10000; // Mutating shared state\n}\n\nfunction makeRequest() {\n  // This function might get unexpected timeout value\n  fetch(config.apiUrl, { timeout: config.timeout });\n}\n\n// Better: immutable approach\nconst DEFAULT_CONFIG = Object.freeze({\n  apiUrl: 'https://api.example.com',\n  timeout: 5000\n});\n\nfunction setupClient(config = DEFAULT_CONFIG) {\n  return { ...config, timeout: 10000 }; // Return new object\n}\n\nfunction makeRequest(config = DEFAULT_CONFIG) {\n  fetch(config.apiUrl, { timeout: config.timeout });\n}"
+  },
+  {
+    "name": "Null Check",
+    "description": "Null check is widespread everywhere because the programming languages allow it. It causes a multitude of null or undefined checks everywhere: in guard checks, in condition blocks, and verification clauses. Instead, special objects could be created that implement the missing-event behavior.",
+    "example": "// Excessive null checking\nfunction processUser(user) {\n  if (user === null || user === undefined) {\n    return null;\n  }\n  \n  if (user.profile === null || user.profile === undefined) {\n    return null;\n  }\n  \n  if (user.profile.preferences === null || user.profile.preferences === undefined) {\n    return null;\n  }\n  \n  return user.profile.preferences.theme;\n}\n\n// Better: use null object pattern or optional chaining\nclass NullUser {\n  get theme() { return 'default'; }\n}\n\nfunction processUser(user = new NullUser()) {\n  return user?.profile?.preferences?.theme ?? 'default';\n}\n\n// Or create a proper abstraction\nfunction getUserTheme(user) {\n  try {\n    return user.profile.preferences.theme;\n  } catch (error) {\n    return 'default';\n  }\n}"
+  },
+  {
+    "name": "Primitive Obsession",
+    "description": "Whenever a variable that is just a simple string, or an int simulates being a more abstract concept, which could be an object, we encounter a Primitive Obsession code smell. This lack of abstraction quickly becomes a problem whenever there is the need for any additional logic.",
+    "example": "// Primitive obsession\nfunction createUser(name, email, phone, ssn) {\n  // email is just a string, but it has validation rules\n  // phone is just a string, but it has formatting rules\n  // ssn is just a string, but it has privacy requirements\n  return { name, email, phone, ssn };\n}\n\nfunction sendEmail(emailAddress, subject, body) {\n  // How do we know if emailAddress is valid?\n  if (!emailAddress.includes('@')) {\n    throw new Error('Invalid email');\n  }\n  // ...\n}\n\n// Better: create value objects\nclass Email {\n  constructor(address) {\n    if (!address.includes('@')) {\n      throw new Error('Invalid email');\n    }\n    this.address = address;\n  }\n  \n  toString() { return this.address; }\n}\n\nclass PhoneNumber {\n  constructor(number) {\n    this.number = this.format(number);\n  }\n  \n  format(number) {\n    // Formatting logic\n    return number.replace(/\\D/g, '');\n  }\n  \n  toString() { return this.number; }\n}\n\nfunction createUser(name, email, phone, ssn) {\n  return {\n    name,\n    email: new Email(email),\n    phone: new PhoneNumber(phone),\n    ssn: new SSN(ssn)\n  };\n}"
+  },
+  {
+    "name": "Shotgun Surgery",
+    "description": "Similar to Divergent Change, but with a broader spectrum, the smell symptom of the Shotgun Surgery code is detected by the unnecessary requirement of changing multiple different classes to introduce a single modification. Most likely, too many classes solve a simple problem.",
+    "example": "// Shotgun surgery - one change requires many modifications\n// Adding a new payment method requires changes in multiple places:\n\nclass PaymentProcessor {\n  process(payment) {\n    if (payment.type === 'credit') {\n      // Process credit card\n    } else if (payment.type === 'debit') {\n      // Process debit card\n    }\n    // Need to add 'crypto' case here\n  }\n}\n\nclass PaymentValidator {\n  validate(payment) {\n    if (payment.type === 'credit') {\n      // Validate credit card\n    } else if (payment.type === 'debit') {\n      // Validate debit card\n    }\n    // Need to add 'crypto' case here\n  }\n}\n\nclass PaymentFeeCalculator {\n  calculateFee(payment) {\n    if (payment.type === 'credit') {\n      return payment.amount * 0.03;\n    } else if (payment.type === 'debit') {\n      return payment.amount * 0.01;\n    }\n    // Need to add 'crypto' case here\n  }\n}\n\n// Better: use polymorphism to centralize related logic\nclass CreditCardPayment {\n  process() { /* ... */ }\n  validate() { /* ... */ }\n  calculateFee(amount) { return amount * 0.03; }\n}\n\nclass DebitCardPayment {\n  process() { /* ... */ }\n  validate() { /* ... */ }\n  calculateFee(amount) { return amount * 0.01; }\n}\n\nclass CryptoPayment {\n  process() { /* ... */ }\n  validate() { /* ... */ }\n  calculateFee(amount) { return amount * 0.005; }\n}\n\n// Adding a new payment method only requires creating one new class"
+  },
+  {
+    "name": "Type Embedded in Name",
+    "description": "Whenever a variable has an explicit type prefix or suffix, it can strongly signal that it should be just a class of its own. For example, current_date as a string embeds the potential class Date in the name of a variable.",
+    "example": "// Type embedded in name\nconst playerNameStr = 'Luzkan';\nconst playerHealthInt = 100;\nconst playerStaminaInt = 50;\nconst playerAttackInt = 7;\nconst currentDateStr = '2021-14-11';\nconst userListArray = ['john', 'jane', 'bob'];\n\n// Better: use proper types/classes\nclass Player {\n  constructor(name, health, stamina, attack) {\n    this.name = name;\n    this.health = health;\n    this.stamina = stamina;\n    this.attack = attack;\n  }\n}\n\nconst player = new Player('Luzkan', 100, 50, 7);\nconst currentDate = new Date('2021-11-14');\nconst users = ['john', 'jane', 'bob'];"
+  },
+  {
+    "name": "Imperative Loops",
+    "description": "Martin Fowler has the feeling that loops are an outdated concept. Nowadays, languages provide an alternative - pipelines. Fowler suggests that anachronistic loops should be replaced by pipeline operations such as filter, map, or reduce.",
+    "example": "// Imperative loops\nconst numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\nconst evenSquares = [];\n\nfor (let i = 0; i < numbers.length; i++) {\n  if (numbers[i] % 2 === 0) {\n    evenSquares.push(numbers[i] * numbers[i]);\n  }\n}\n\n// Better: functional pipeline\nconst evenSquares = numbers\n  .filter(n => n % 2 === 0)\n  .map(n => n * n);\n\n// Another example\nlet total = 0;\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].active) {\n    total += items[i].price;\n  }\n}\n\n// Better: functional approach\nconst total = items\n  .filter(item => item.active)\n  .reduce((sum, item) => sum + item.price, 0);"
+  },
+  {
+    "name": "Oddball Solution",
+    "description": "If a similar problem is solved differently in different parts of the project, it is an Oddball Solution. This code smell could also have been classified under Duplicated Code, although it is not exactly a one-to-one copy-paste - it is more subtle.",
+    "example": "// Oddball solutions - solving same problem differently\n// Different ways to handle API responses:\nfunction handleUserResponse(response) {\n  if (response.status === 200) {\n    return response.data;\n  } else {\n    throw new Error(response.message);\n  }\n}\n\nfunction handleProductResponse(response) {\n  if (response.ok) {\n    return response.body;\n  } else {\n    console.error(response.error);\n    return null;\n  }\n}\n\nfunction handleOrderResponse(response) {\n  try {\n    return JSON.parse(response.text);\n  } catch (e) {\n    return { error: 'Parse failed' };\n  }\n}\n\n// Better: consistent approach\nclass APIResponseHandler {\n  static handle(response) {\n    if (response.status >= 200 && response.status < 300) {\n      return response.data;\n    } else {\n      throw new APIError(response.message, response.status);\n    }\n  }\n}\n\nfunction handleUserResponse(response) {\n  return APIResponseHandler.handle(response);\n}\n\nfunction handleProductResponse(response) {\n  return APIResponseHandler.handle(response);\n}\n\nfunction handleOrderResponse(response) {\n  return APIResponseHandler.handle(response);\n}"
+  }
+]
